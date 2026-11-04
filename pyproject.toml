@@ -1,0 +1,56 @@
+# Packaging metadata for the Jasper IT Solutions SEO report runner (R8.7b).
+#
+# Purpose: let a future clean virtual environment (OUTSIDE OneDrive) install the project once and start it without setting PYTHONPATH:
+#     python -m pip install -r requirements-lock.txt     # exact, tested versions
+#     python -m pip install -e . --no-deps               # makes `seo_report` importable and adds the `seo-report` command
+#     seo-report --version        (or:  python -m seo_report --version)
+#
+# NOT YET VERIFIED: no environment was created and nothing was installed when this file was written (see README.md, "Verified and unverified").
+#
+# EDITABLE INSTALL ONLY. The code finds `templates/`, `config/`, `assets/` and `requirements.txt` relative to the project checkout
+# (`Path(__file__).parents[2]`), so a normal (non-editable) install into site-packages would not find them. Install with `-e` from the checkout.
+#
+# The dependency list below is a copy of `requirements.txt` (the same 13 pins); tests/test_packaging.py fails if the two ever differ.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jasper-seo-report"
+version = "8.6.0"   # equals seo_report.cli.APP_VERSION (checked by tests/test_packaging.py)
+description = "Jasper IT Solutions SEO report runner: local, sequential, ledger-backed PDF report generation"
+readme = "README.md"
+requires-python = ">=3.14"   # verified only on Python 3.14.7 (Windows 11); the pins below are the versions the test suite passes with
+dependencies = [
+    "google-api-python-client==2.201.0",
+    "google-api-core==2.43.1",
+    "google-auth==2.62.0",
+    "google-auth-httplib2==0.4.4",
+    "google-auth-oauthlib==1.5.0",
+    "google-analytics-data==0.23.3",
+    "requests==2.34.2",
+    "grpcio==1.85.0",
+    "httplib2==0.32.1",
+    "PyYAML==6.0.3",
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.4",
+    "playwright==1.64.1",
+]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "matplotlib==3.11.2",
+]
+
+[project.scripts]
+seo-report = "seo_report.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]   # `insights`, `snapshots` and `sources` have no __init__.py; implicit namespace packages are included (the default for pyproject.toml)

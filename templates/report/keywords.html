@@ -1,0 +1,56 @@
+{#- The keyword rankings page body. `page` is a keyword_pages.KeywordPage (rows, footnote and insights are already
+    decided in Python); `columns` is keyword_pages.COLUMNS. Nothing is drawn for an absent part, so no empty block can
+    appear. Rows are never split and every page that has rows carries the complete header. -#}
+
+{% macro keyword_page_body(page, columns) -%}
+{% if page.heading %}
+<h2 class="keywords__heading">{{ page.heading }}</h2>
+{% endif %}
+{% if page.website %}
+<p class="keywords__website">{% if page.website_href %}<a href="{{ page.website_href }}">{{ page.website }}</a>{% else %}{{ page.website }}{% endif %}</p>
+{% endif %}
+{% if page.rows %}
+<table class="data-table keyword-table" data-keyword-rows="{{ page.rows | length }}">
+  <colgroup>
+    {% for name, percent, align in columns %}<col style="width: {{ percent }}%">
+    {% endfor %}
+  </colgroup>
+  <thead>
+    <tr>
+      {% for name, percent, align in columns %}<th scope="col" class="keyword-table__col--{{ align }}">{{ name }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in page.rows %}
+    <tr class="keyword-row" data-keyword-index="{{ row.index }}">
+      <td class="keyword-table__col--left">{{ row.keyword }}</td>
+      <td class="keyword-table__col--left">{{ row.location }}</td>
+      <td class="keyword-table__col--center">{{ row.previous }}</td>
+      <td class="keyword-table__col--center">{{ row.current }}</td>
+      <td class="keyword-table__col--center keyword-table__move keyword-table__move--{{ row.movement.kind }}" aria-label="{{ row.movement.label }}">{{ row.movement.text }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% elif page.empty_message %}
+<p class="keywords__empty">{{ page.empty_message }}</p>
+{% endif %}
+{% if page.footnote %}
+<p class="keywords__footnote">{{ page.footnote }}</p>
+{% endif %}
+{% if page.paragraphs %}
+<div class="keywords__insights">
+  {% for paragraph in page.paragraphs %}
+  {% if loop.first and page.insights_heading %}
+  <div class="keep-together">
+    <h2 class="keywords__insights-heading">{{ page.insights_heading }}</h2>
+    <p>{{ paragraph }}</p>
+  </div>
+  {% else %}
+  <p>{{ paragraph }}</p>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+{%- endmacro %}

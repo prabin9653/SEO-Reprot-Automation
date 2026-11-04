@@ -1,0 +1,27 @@
+{#- Reusable page-level macros. Everything shown comes from the validated ClientRenderInput (`input`) and the
+    TemplateAssets (`assets`); the templates contain no business logic and read no clock, file or setting. -#}
+
+{% macro logo(assets) -%}
+<img class="logo" src="{{ assets.logo.href }}" width="{{ assets.logo.width_px }}" height="{{ assets.logo.height_px }}" alt="Jasper IT Solutions" style="aspect-ratio: {{ assets.logo.width_px }} / {{ assets.logo.height_px }};">
+{%- endmacro %}
+
+{#- `meta` is the text at the right of the header (the report date on the cover, the client name inside the report);
+    nothing is drawn when it is not supplied. -#}
+{% macro page_header(assets, meta=none) -%}
+<header class="page-header">
+  <div class="page-header__row">
+    {{ logo(assets) }}
+    {% if meta %}<div class="page-header__meta">{{ meta }}</div>{% endif %}
+  </div>
+  <hr class="page-header__rule">
+</header>
+{%- endmacro %}
+
+{#- The footer names the client and carries the page number. The number is supplied by the document builder, which
+    knows the page order; without one the number is simply not drawn. -#}
+{% macro page_footer(client_name, page_number=none) -%}
+<footer class="page-footer">
+  <span class="page-footer__client">{{ client_name }}</span>
+  {% if page_number is not none %}<span class="page-footer__number" data-page-number="{{ page_number }}">Page {{ page_number }}</span>{% endif %}
+</footer>
+{%- endmacro %}

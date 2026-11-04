@@ -1,0 +1,38 @@
+# Runtime dependencies of the SEO reporting engine and the production runner.
+#
+# Verified against the project's environment on 2026-10 (Python 3.14.7, Windows 11): every package below is imported by
+# code under src/seo_report/, or is required for such an import to work, and the full test suite runs with exactly
+# these versions (checked by tests/test_dependencies.py). Nothing was installed, upgraded or downgraded to produce this file.
+#
+# These are the DIRECT requirements. The complete, exact closure (33 packages) is in requirements-lock.txt, generated from the
+# installed metadata by scripts/dependency_report.py; install from the lock for a reproducible environment. Test tools are in
+# requirements-dev.txt / requirements-dev-lock.txt.
+#
+# Install into a virtual environment OUTSIDE any OneDrive folder:
+#   python -m pip install -r requirements.txt
+# The PDF renderer also needs the Chromium build that Playwright manages (a separate, one-time step):
+#   python -m playwright install chromium        (the tested build is Chromium 156.0.8078.4 with playwright 1.64.1)
+
+# Google APIs (Sheets / Search Console discovery client, GA4 Data API client, authentication)
+google-api-python-client==2.201.0
+google-api-core==2.43.1
+google-auth==2.62.0
+google-auth-httplib2==0.4.4
+google-auth-oauthlib==1.5.0
+google-analytics-data==0.23.3
+requests==2.34.2            # imported by seo_report/source_collector.py and through google.auth.transport.requests
+grpcio==1.85.0              # imported by seo_report/source_collector.py (gRPC error classification)
+httplib2==0.32.1            # imported by seo_report/source_collector.py (DNS error classification)
+
+# Configuration, templating and PDF rendering
+PyYAML==6.0.3               # config/clients.yaml, config/jasper.yaml, runner settings
+Jinja2==3.1.6               # report HTML templates
+MarkupSafe==3.0.4           # imported by the report templates (escaping)
+playwright==1.64.1          # Chromium PDF rendering
+
+# Not listed on purpose (see requirements-dev.txt)
+#   pytest==9.2.0           development/test only
+#   matplotlib==3.11.2      development/test only: the tests take the DejaVu Sans font files from its data folder.
+#                           The runner gets the font files from settings (render.fonts), so matplotlib is not required
+#                           at run time.
+# Transitive packages (protobuf, oauthlib, urllib3, ...) are pinned in requirements-lock.txt.

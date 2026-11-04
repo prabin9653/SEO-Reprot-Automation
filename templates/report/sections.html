@@ -1,0 +1,82 @@
+{#- Bodies of the Search Console, geography, GA4, recommendations and contact pages. `page` is a
+    report_sections.SectionPage: every decision (wording, formats, what is shown, how rows are split across pages) is
+    made in Python; this template only draws the blocks in order. Nothing is drawn for an absent part. -#}
+{% from "page.html" import logo %}
+
+{% macro section_page_body(page, assets) -%}
+{% for placement in page.placements %}
+{% set b = placement.block %}
+{% if b.kind == "heading" %}
+<div class="block block--heading" data-section="{{ b.section }}"><h2 class="section__heading">{{ b.data["text"] }}</h2></div>
+{% elif b.kind == "notice" %}
+<div class="block block--notice" data-section="{{ b.section }}">{{ b.data["html"] }}</div>
+{% elif b.kind == "tiles" %}
+<div class="block block--tiles" data-section="{{ b.section }}">
+  <div class="tiles tiles--{{ b.data["items"] | length }}">
+    {% for label, value in b.data["items"] %}
+    <div class="tile"><div class="tile__label">{{ label }}</div><div class="tile__value">{{ value }}</div></div>
+    {% endfor %}
+  </div>
+</div>
+{% elif b.kind == "chart" %}
+<div class="block block--chart" data-section="{{ b.section }}">
+  <figure class="figure">
+    <p class="figure__title">{{ b.data["title"] }}</p>
+    {{ b.data["svg"] }}
+    {% if b.data["caption"] %}<figcaption class="figure__caption">{{ b.data["caption"] }}</figcaption>{% endif %}
+  </figure>
+</div>
+{% elif b.kind == "message" %}
+<div class="block block--message" data-section="{{ b.section }}"><p class="section__message">{{ b.data["text"] }}</p></div>
+{% elif b.kind == "paragraph" %}
+<div class="block block--paragraph" data-section="{{ b.section }}"><p data-record="paragraph">{{ b.data["text"] }}</p></div>
+{% elif b.kind == "statement" %}
+<div class="block block--statement" data-section="{{ b.section }}">
+  <p class="statement" data-record="statement"><span class="statement__text">{{ b.data["text"] }}</span><br><span class="statement__baseline">{{ b.data["baseline"] }}</span></p>
+</div>
+{% elif b.kind == "table" %}
+<div class="block block--table" data-section="{{ b.section }}" data-table="{{ b.name }}">
+  {% if placement.first_slice %}<p class="table__caption">{{ b.caption }}</p>{% endif %}
+  <table class="data-table report-table">
+    <colgroup>
+      {% for column in b.columns %}<col style="width: {{ column.percent }}%">
+      {% endfor %}
+    </colgroup>
+    <thead>
+      <tr>
+        {% for column in b.columns %}<th scope="col" class="report-table__col--{{ column.align }}">{{ column.name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in b.rows %}
+      <tr data-record="{{ b.record }}">
+        {% for cell in row %}<td class="report-table__col--{{ b.columns[loop.index0].align }}">{{ cell }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif b.kind == "recommendation" %}
+<div class="block block--recommendation" data-section="{{ b.section }}">
+  <div class="recommendation" data-record="recommendation">
+    <span class="check" aria-hidden="true">&#10003;</span>
+    <div class="recommendation__text"><p class="recommendation__title">{{ b.data["title"] }}</p><p class="recommendation__action">{{ b.data["action"] }}</p></div>
+  </div>
+</div>
+{% elif b.kind == "contact" %}
+<div class="block block--contact" data-section="{{ b.section }}">
+  <div class="contact">
+    <h2 class="contact__heading">{{ b.data["heading"] }}</h2>
+    <div class="contact__lines">
+      {% for line in b.data["lines"] %}
+      <p>{% if line.href %}<a href="{{ line.href }}">{{ line.text }}</a>{% else %}{{ line.text }}{% endif %}</p>
+      {% endfor %}
+    </div>
+    <div class="contact__logo">{{ logo(assets) }}</div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{%- endmacro %}

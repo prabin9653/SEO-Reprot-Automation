@@ -1,0 +1,28 @@
+{% from "cover.html" import cover_page with context %}
+{% from "page.html" import page_header, page_footer with context %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ input.client.name }} - Search Engine Optimization Report</title>
+<style>
+{{ font_css }}
+{{ css }}
+</style>
+</head>
+<body>
+{% for page in pages %}
+{% if page.kind == "cover" %}
+{{ cover_page(input, assets, page.date_text, page.sender_lines, page.client_href) }}
+{% else %}
+<section class="page page--{{ page.kind }}" data-page-kind="{{ page.kind }}">
+  <div class="page__frame">
+    {{ page_header(assets, meta=input.client.name) }}
+    <div class="page__body">{{ page.body }}</div>
+    {{ page_footer(input.client.name, page.number) }}
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+</body>
+</html>

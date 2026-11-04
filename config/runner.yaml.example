@@ -1,0 +1,63 @@
+# Example settings for the production runner (R8.3). Copy to a private location and edit; never put credentials,
+# tokens or client secrets in this file (the loader refuses them). Every value below is a placeholder.
+#
+# Omitted settings use the engine's defaults:
+#   output root   %LOCALAPPDATA%\JasperSEOReporting\output   (or $JASPER_SEO_OUTPUT_ROOT)
+#   history db    %LOCALAPPDATA%\JasperSEOReporting\history\seo_reports.sqlite   (or $JASPER_SEO_HISTORY_DB)
+#   ledger db     %LOCALAPPDATA%\JasperSEOReporting\ledger\ledger.sqlite         (or $JASPER_SEO_LEDGER_DB)
+#   work root     %LOCALAPPDATA%\JasperSEOReporting\work
+# None of these may be inside the project folder or a OneDrive folder, and they must not overlap each other.
+
+paths:
+  # output_root: C:\Users\you\AppData\Local\JasperSEOReporting\output
+  # history_db: C:\Users\you\AppData\Local\JasperSEOReporting\history\seo_reports.sqlite
+  # ledger_db: C:\Users\you\AppData\Local\JasperSEOReporting\ledger\ledger.sqlite
+  # work_root: C:\Users\you\AppData\Local\JasperSEOReporting\work
+  # clients_config: C:\path\to\project\config\clients.yaml
+  # sender_config: C:\path\to\project\config\jasper.yaml
+  #
+  # Where the Google OAuth client file and the cached sign-in file live (R8.6b). BOTH are optional.
+  # Omitted = the migration-compatible fallback INSIDE the project (its credentials folder and root), exactly as before.
+  # The recommended future location is outside the project and OneDrive; the files are NOT moved by any command, a person does that
+  # (see docs/r8/credential_relocation_procedure.md). %VARIABLES% are expanded; the paths must be absolute files (not folders), without "..",
+  # and may not be inside the output, work, history or ledger locations. The setup command and normal reporting use the same two settings.
+  # (The key names avoid the words "secret" and "token" because the loader refuses configuration keys that look like credentials.)
+  # oauth_client_file: C:\Users\you\AppData\Local\JasperSEOReporting\credentials\client.json
+  # oauth_cache_file: C:\Users\you\AppData\Local\JasperSEOReporting\credentials\login.json
+
+render:
+  # logo defaults to assets/jasper-logo.png in the project.
+  # The report font is DejaVu Sans (regular and bold). Point at the two font files; the licence permits bundling.
+  fonts:
+    - label: DejaVuSans
+      path: C:\path\to\fonts\DejaVuSans.ttf
+      weight: "400"
+    - label: DejaVuSans-Bold
+      path: C:\path\to\fonts\DejaVuSans-Bold.ttf
+      weight: "700"
+
+workbooks:
+  # Spreadsheet IDs only (not links, not credentials). The reporting workbook is read-only for automation.
+  reporting_spreadsheet_id: REPLACE_WITH_REPORTING_SPREADSHEET_ID
+  operational_spreadsheet_id: REPLACE_WITH_OPERATIONAL_SPREADSHEET_ID
+
+execution:
+  lock_ttl_seconds: 600
+  # How often a running client's leases are renewed in the background (seconds). Default: the smaller of 60 and lock_ttl_seconds / 4;
+  # at most lock_ttl_seconds / 3 so that a lease survives two missed renewals.
+  heartbeat_interval_seconds: 60
+  inter_client_pause_seconds: 1
+  client_timeout_seconds: 1500
+  batch_deadline_seconds: 21600
+  max_automatic_attempts: 3
+  retry_delays_seconds: [300, 900]
+  # Only the 'rendering' entry is ENFORCED (a hard limit on the browser, R8.4.4). The other entries are validated but not yet enforced.
+  stage_timeouts:
+    collecting: 600
+    rendering: 300
+    finalizing: 180
+    auditing: 120
+    publishing: 300
+
+# Logging is not configured here: runner.configure_logging(log_dir=None) writes sanitized JSON lines to
+# %LOCALAPPDATA%\JasperSEOReporting\logs\seo_report.log (5 MB x 5 files). The folder must be outside the project and OneDrive.

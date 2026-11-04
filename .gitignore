@@ -1,0 +1,80 @@
+
+credentials/
+token.json
+.env
+.venv/
+__pycache__/
+*.py[cod]
+output/
+
+# Client data and runtime artifacts
+history/
+reference/
+.env.*
+token*.json
+client_secret*.json
+*.log
+
+# Tooling caches
+.pytest_cache/
+.playwright-browsers/
+*.egg-info/
+
+# Local databases and runtime data
+*.sqlite
+*.sqlite3
+*.db
+*.attest
+*.pdf
+previews/
+work/
+ledger/
+logs/
+reports/
+
+# Private runtime configuration
+config/runner.yaml
+config/clients.yaml
+
+# Private key and certificate files
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local development tools
+.claude/
+.vscode/
+.idea/
+
+# Additional local secrets, certificates, caches and temporary artifacts
+# Credential and secret files
+secrets.json
+service_account.json
+credentials.json
+.netrc
+id_rsa
+
+# Certificates and keystores
+*.crt
+*.cer
+*.jks
+
+# Development and analysis caches
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Build and dependency artifacts
+node_modules/
+dist/
+build/
+
+# Temporary and backup files
+*.tmp
+*.bak
+
+# Operating-system metadata
+.DS_Store
+desktop.ini

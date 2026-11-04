@@ -1,0 +1,4 @@
+# Synthetic example only. Keep real client configuration local.
+clients:
+  - name: "Example Client"
+    client_key: "example-client"

@@ -1,0 +1,24 @@
+{#- Visual status messages. `notice` is a `VisualNotice` built by report_templates.build_visual_notice (the wording and
+    the decisions live in Python; this macro only draws them). Nothing is drawn when there is nothing to say, so no
+    empty box can appear. -#}
+
+{% macro visual_notice(notice) -%}
+{% if notice.status == "unavailable" %}
+<aside class="notice notice--unavailable" role="note" data-visual-status="unavailable">
+  <p>{{ notice.message }}</p>
+</aside>
+{% else %}
+{% if notice.status == "incomplete" %}
+<aside class="notice notice--incomplete" role="note" data-visual-status="incomplete">
+  <p class="notice__title">Incomplete data</p>
+  <p>{{ notice.message }}</p>
+</aside>
+{% endif %}
+{% if notice.truncation %}
+<aside class="notice notice--truncated" role="note" data-visual-truncation="true">
+  {% for line in notice.truncation %}<p>{{ line }}</p>
+  {% endfor %}
+</aside>
+{% endif %}
+{% endif %}
+{%- endmacro %}

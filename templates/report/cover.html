@@ -1,0 +1,23 @@
+{% from "page.html" import page_header with context %}
+
+{% macro cover_page(input, assets, date_text, sender_lines, client_href) -%}
+<section class="page page--cover" data-page-kind="cover">
+  <div class="page__frame">
+    {{ page_header(assets, meta=date_text) }}
+    <div class="page__body cover">
+      {% if sender_lines %}
+      <div class="cover__sender">
+        {% for line in sender_lines %}
+        <p>{% if line.href %}<a href="{{ line.href }}">{{ line.text }}</a>{% else %}{{ line.text }}{% endif %}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="cover__main">
+        <h1 class="cover__title">SEARCH ENGINE OPTIMIZATION REPORT</h1>
+        <p class="cover__client">{{ input.client.name }}</p>
+        <p class="cover__website">{% if client_href %}<a href="{{ client_href }}">{{ input.client.website }}</a>{% else %}{{ input.client.website }}{% endif %}</p>
+      </div>
+    </div>
+  </div>
+</section>
+{%- endmacro %}
