@@ -18,7 +18,7 @@ e-mail, and no command was run against production *(true at R8.6a; since R8.6b `
 Run it with `python -m seo_report ...` (entry point `src/seo_report/__main__.py`, logic in `cli.py` and `cli_report.py`, exit codes in `cli_exit.py`). `pyproject.toml` also declares the console script `seo-report = seo_report.cli:main`.
 
 ## Global rules
-* **No command defaults to production.** A settings file must be named: `--config PATH` or the environment variable `JASPER_SEO_CONFIG` (the output says which). Options
+* **No command defaults to production.** A settings file is found from `--config PATH`, else the environment variable `JASPER_SEO_CONFIG`, else (since the operator-experience stage) the per-user file `%LOCALAPPDATA%\JasperSEOReporting\config\runner.yaml` **when it exists** (the output says which; nothing in the project folder or the current directory is ever picked up). A default settings file only saves typing `--config`: production commands still need `--production` and the production gate. Options
   `--config` and `--json` are accepted before or after the command (`python -m seo_report --json status --config PATH` and `... status --config PATH --json` are equivalent). `--help` and `--version` need no settings file.
 * **State-changing commands need `--production`** in addition: `report run`, `report batch`, `recovery acknowledge`, `recovery cancel`. Without it the command stops with exit code 2
   before anything is read. `report dry-run`, `status`, `recovery inspect`, `doctor`, `system-info`, `clients` and `setup auth` have no such flag. `report dry-run` takes only `--client` and `--period`: any other option, including the former `--scratch-dir`, is a usage error (exit code 2); it never writes production storage or the ledger.
@@ -242,3 +242,20 @@ The `outstanding` list of `doctor --json` and `system-info` drops `credentials_n
 
 * **Google Search Console:** no daily table. The daily series is still collected and drawn in the "Clicks per day" and "Impressions per day" charts.
 * **Geographical Performance:** the chart and the table show the same top 5 countries, ranked by impressions (descending), then clicks (descending), then country name. The caption states how many countries exist ("Top 5 countries by impressions (of N)"). The report data keeps every country.
+
+## Operator commands (operator-experience stages 1 to 5)
+
+These commands were added after R8.7h. They call the same code as the commands above and add no pipeline state, error category or exit code.
+
+| Command | Purpose | Arguments | Contacts Google? | Writes |
+|---|---|---|---|---|
+| `clients check` | one table of every client: `ready` (with the period, whether a report exists on this device, when and by whom it was generated, whether Google is verified here, and whether a teammate's shared-log entry shows it was made elsewhere), `needs_fix` (with the code and its fix), `not_registered`, `skipped`, `not_in_sheet`; exit 3 only for real problems | `[--client KEY]` | reads the workbook (read-only) | nothing |
+| `clients add` | register a sheet client in the local client registry; refuses duplicate names, near-duplicates (case/spacing) and reused keys; keeps a `.bak` copy and replaces the file atomically | `--name NAME [--key KEY]` or `--all-missing [--yes]` (without `--yes` only a plan is shown; on a device with no registry file the sheet builds it) | `--all-missing` reads the workbook | `config/clients.yaml` only |
+| `report open` | open a finished `report.pdf` (the latest period, or `--period`) from the output folder only | `--client KEY [--period P] [--no-open]` | no | nothing |
+| `web` | the local web page: serves `127.0.0.1` only, one-time token, runs only `verify live` and `report run` (plus read-only `clients check`, `status`, `system-info`, `report open`, `clients add --name`), one job at a time | `[--port PORT] [--no-browser]` | through the commands it runs | through the commands it runs |
+| `setup device` | one-time setup of this computer: per-user folders, verified report fonts, the settings file (never overwritten), the credentials-folder permission; lists what is still missing | `[--spreadsheet-id ID_OR_ADDRESS] [--shared-folder PATH]`; needs no settings file | no | `%LOCALAPPDATA%\JasperSEOReporting\{config,credentials,fonts}` only |
+
+* **Error guidance.** Every error output (text and `--json`) adds `what it means` / `what to do` (`error.meaning`, `error.fix`) for the codes in `seo_report.guidance`; the code, message and exit code are unchanged. `report run` adds the same under an `already_complete` outcome.
+* **Operator label.** `requested_by` in the ledger is `cli:<name>` or `web:<name>`, where `<name>` is the Windows account (or `JASPER_SEO_OPERATOR`), reduced to letters, digits and `. _ -`. `status` shows `generated_by` (the person whose request finished the report) and `finalized_at`.
+* **Shared activity log (optional).** `paths.shared_activity_dir` in the runner settings names a folder the team shares. After a newly finished report each computer appends one line (`client_key`, `period_id`, operator, device, UTC time, `pdf16`) to `activity-<operator>-<device>.jsonl` there. Reading treats the folder as untrusted. It is a warning, never a lock, and an unavailable folder never fails a run.
+* **Web page security.** Loopback only; the Host and Origin headers are checked; every API call needs the token printed at start; the only actions are the fixed set above with validated arguments; strict `Content-Security-Policy`; client names are inserted as text.

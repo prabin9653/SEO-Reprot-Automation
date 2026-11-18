@@ -119,14 +119,18 @@ def test_the_checkout_layout_the_code_depends_on_exists():
         assert (ROOT / relative).exists(), relative
 
 
-def test_the_readme_documents_installation_launch_and_the_unverified_parts():
+def test_the_readme_documents_installation_launch_safety_and_the_limits():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     for needle in ("py -3.14 -m venv", "pip install -r requirements-lock.txt", "pip install -e . --no-deps", "playwright install chromium",
-                   "PYTHONPATH", "seo-report --version", "outside OneDrive", "Not yet verified", "doctor", "system-info", "setup auth",
+                   "PYTHONPATH", "seo-report --version", "outside OneDrive", "doctor", "system-info", "setup auth", "setup device", "seo web",
                    "production gate", "live_google_not_verified", "credentials_not_relocated", "DejaVu", "jasper-logo.png",
-                   "runner.yaml.example", "dry-run"):
+                   "runner.yaml.example", "dry-run", "team_setup.md", "cheat_sheet.md", "install_device.ps1"):
         assert needle in text, needle
-    assert "not production-ready" in text.lower() and "`-e` (editable)" in text
+    assert "`-e` (editable)" in text
+    # the status is stated honestly: in use, with delivery and the untried parts called out
+    lowered = text.lower()
+    assert "status: in use" in lowered and "delivery is not implemented" in lowered and "has **not** been verified" in lowered
+    assert "not production-ready" not in lowered
 
 
 def test_the_readme_contains_no_credential_like_text():

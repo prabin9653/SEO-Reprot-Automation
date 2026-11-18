@@ -24,6 +24,11 @@ paths:
   # (The key names avoid the words "secret" and "token" because the loader refuses configuration keys that look like credentials.)
   # oauth_client_file: C:\Users\you\AppData\Local\JasperSEOReporting\credentials\client.json
   # oauth_cache_file: C:\Users\you\AppData\Local\JasperSEOReporting\credentials\login.json
+  #
+  # Optional: a folder the team shares (synchronised or network). Each computer appends a small "report generated" line there (client key, period, operator,
+  # computer name, time), so `clients check` and the web page can warn that a report already exists on ANOTHER computer. Off when omitted. It may be synchronised, but may
+  # not be one of the storage folders or hold credentials. One file per person and computer; nothing is ever rewritten.
+  # shared_activity_dir: D:\TeamShare\seo-activity
 
 render:
   # logo defaults to assets/jasper-logo.png in the project.

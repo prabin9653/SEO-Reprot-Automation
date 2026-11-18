@@ -697,6 +697,11 @@ class Ledger:
     def requests_by_key(self, idempotency_key: str):
         return self._one("SELECT * FROM requests WHERE idempotency_key = ?", (idempotency_key,))
 
+    def requests_for_run(self, run_key: str):
+        """Every `run`/`retry` request that was attached to this run, oldest first (read-only). Used to say who generated a report."""
+        return self._all("SELECT request_id, requested_by, requested_at, action, status, response_json FROM requests "
+                         "WHERE run_key = ? AND action IN ('run','retry') ORDER BY received_at, request_id", (run_key,))
+
     # -- runs --------------------------------------------------------------------------------------------------------------
 
     def get_run(self, run_key: str):

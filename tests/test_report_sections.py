@@ -412,15 +412,15 @@ def _lines(html, marker='class="contact__lines">'):
 
 
 US_LINES = ["Pat Manager", "Project Manager | Jasper IT Inc.", "3402 E Pine Brook Way", "Houston, TX 77059",
-            "Cell: 555-010-0147", "E-mail: pat.manager@client.test", "Website: Jasper IT Inc"]
-AU_LINES = ["Pat Manager", "Project Manager | Jasper IT Inc.", "Ingleburn NSW 2565",
+            "Cell: 555-010-0147", "E-mail: pat.manager@client.test", "Website: https://jasperitinc.com/"]
+AU_LINES = ["Pat Manager", "Project Manager | Jasper IT Solutions", "Ingleburn NSW 2565",
             "Cell: 555-010-0147", "E-mail: pat.manager@client.test", "Website: https://jasperitsolutions.com.au/"]
 
 
 def test_the_united_states_block_has_the_reference_lines_in_order_with_the_us_address_and_link():
     html = html_of(sender=_manager_sender("United States"))
     assert _lines(html) == US_LINES
-    assert '<a href="https://jasperitinc.com/">Website: Jasper IT Inc</a>' in html.split('class="contact"')[1]
+    assert '<a href="https://jasperitinc.com/">Website: https://jasperitinc.com/</a>' in html.split('class="contact"')[1]
     block = html.split('class="contact"')[1]
     for leftover in ("Ingleburn", "jasperitsolutions", "None", "null", "Jimmy", "281"):
         assert leftover not in block

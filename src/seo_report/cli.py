@@ -99,6 +99,16 @@ def operator_arg(text: str) -> str:
     return text
 
 
+def port_arg(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a whole number") from None
+    if not 1024 <= value <= 65535:
+        raise argparse.ArgumentTypeError("must be between 1024 and 65535")
+    return value
+
+
 def positive_int_arg(text: str) -> int:
     try:
         value = int(text)
@@ -143,6 +153,10 @@ def build_parser() -> argparse.ArgumentParser:
                                            "authentication configuration, client configuration, logging")
     doctor.add_argument("--skip-browser-launch", action="store_true", help="do not start Chromium (the launch check is then 'unverified')")
 
+    web = leaf(commands, "web", help="open the local web page (this computer only): check clients, verify Google, run reports, open PDFs")
+    web.add_argument("--port", type=port_arg, default=8765, metavar="PORT", help="preferred local port (default 8765; another free one is used if it is taken)")
+    web.add_argument("--no-browser", action="store_true", help="only print the address; do not open the browser")
+
     clients = commands.add_parser("clients", help="list and validate clients").add_subparsers(
         dest="subcommand", required=True, metavar="ACTION")
     leaf(clients, "list", help="list stable client keys and status; invalid rows are reported, never hide valid clients")
@@ -151,6 +165,14 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--online", action="store_true",
                           help="ALSO read the reporting workbook (read-only Google Sheets access) and check each client's rows; "
                                "without it nothing contacts Google")
+    check = leaf(clients, "check", help="one table for every client: ready or what to fix, whether its report exists, whether Google is verified "
+                                        "(reads the workbook, read-only)")
+    check.add_argument("--client", type=client_key_arg, metavar="CLIENT_KEY", help="only this client")
+    add = leaf(clients, "add", help="register a sheet client in config/clients.yaml (a local file; contacts nothing, writes no report data)")
+    add.add_argument("--name", metavar="NAME", help="the client's exact Client Name in the sheet")
+    add.add_argument("--key", type=client_key_arg, metavar="CLIENT_KEY", help="the permanent key (default: made from the name; it can never change once reports exist)")
+    add.add_argument("--all-missing", action="store_true", help="register every sheet client that has no key yet (reads the workbook, read-only)")
+    add.add_argument("--yes", action="store_true", help="with --all-missing: really write the entries (without it only the plan is shown)")
 
     report = commands.add_parser("report", help="plan, run or batch-run reports").add_subparsers(
         dest="subcommand", required=True, metavar="ACTION")
@@ -169,6 +191,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--client", type=client_key_arg, required=True, metavar="CLIENT_KEY")
     run.add_argument("--period", type=period_arg, required=True, metavar="YYYY-MM-DD_YYYY-MM-DD")
     run.add_argument("--production", action="store_true", help="confirm that this writes the production ledger and output")
+    open_ = leaf(report, "open", help="open a client's finished report PDF (read-only; the latest period unless --period is given)")
+    open_.add_argument("--client", type=client_key_arg, required=True, metavar="CLIENT_KEY")
+    open_.add_argument("--period", type=period_arg, metavar="YYYY-MM-DD_YYYY-MM-DD")
+    open_.add_argument("--no-open", action="store_true", help="only print the location; do not open the PDF")
     batch = leaf(report, "batch", help="run clients one after another (needs --production)")
     batch.add_argument("--period", type=period_arg, required=True, metavar="YYYY-MM-DD_YYYY-MM-DD")
     batch.add_argument("--client", type=client_key_arg, action="append", metavar="CLIENT_KEY", help="restrict to these clients (repeatable)")
@@ -202,6 +228,10 @@ def build_parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup", help="attended one-time set-up").add_subparsers(
         dest="subcommand", required=True, metavar="WHAT")
     leaf(setup, "auth", help="sign in to Google in a browser (only at an attended console); never part of normal reporting")
+    device = leaf(setup, "device", help="one-time setup of THIS computer: per-user folders, the report fonts, the settings file; says what is left to do "
+                                        "(needs no settings file, contacts nothing, installs nothing)")
+    device.add_argument("--spreadsheet-id", metavar="ID_OR_ADDRESS", help="the reporting workbook (its Google Sheets address or ID); needed the first time")
+    device.add_argument("--shared-folder", metavar="PATH", help="optional folder the team shares, where each computer records \"report generated\" lines so teammates can see what exists elsewhere")
     return parser
 
 
@@ -211,6 +241,13 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
     if key == ("report", "dry-run") and getattr(args, "scratch_dir", None) is not None:
         parser.error("--scratch-dir is not supported: `report dry-run` only plans and renders nothing, so it has no scratch folder "
                      "(remove the option; nothing was read or written)")
+    if key == ("clients", "add"):
+        if bool(getattr(args, "name", None)) == bool(getattr(args, "all_missing", False)):
+            parser.error("give either --name \"<exact sheet name>\" or --all-missing")
+        if getattr(args, "all_missing", False) and getattr(args, "key", None):
+            parser.error("--key goes with --name; --all-missing makes every key from the sheet name")
+        if getattr(args, "yes", False) and not getattr(args, "all_missing", False):
+            parser.error("--yes only goes with --all-missing")
     if key == ("verify", "live") and not getattr(args, "live", False):
         parser.error("this command contacts Google (read-only), may rewrite the cached sign-in and stores the verification attestation; add --live to confirm")
     if key in PRODUCTION_COMMANDS and not getattr(args, "production", False):
@@ -233,8 +270,19 @@ class Context:
         return self.args.command, getattr(self.args, "subcommand", None)
 
 
+def standard_config_path(environ) -> Path | None:
+    """`%LOCALAPPDATA%\\JasperSEOReporting\\config\\runner.yaml` when that file exists, else None. Only the per-user LOCALAPPDATA of the given environment
+    is consulted (never the project folder or the current directory), so nothing is picked up by accident. Production still needs `--production` and
+    the production gate; a default settings file only saves typing `--config`."""
+    base = environ.get("LOCALAPPDATA")
+    if not base:
+        return None
+    path = Path(base) / "JasperSEOReporting" / "config" / "runner.yaml"
+    return path if path.is_file() else None
+
+
 def resolve_config_path(ctx: Context) -> Path:
-    """The settings file named by `--config` or `JASPER_SEO_CONFIG`; there is deliberately no default location."""
+    """The settings file named by `--config` or `JASPER_SEO_CONFIG`, else the per-user standard location when it exists."""
     explicit, from_env = ctx.args.config, ctx.environ.get(ENV_CONFIG)
     if explicit:
         ctx.config_source = "--config"
@@ -243,7 +291,12 @@ def resolve_config_path(ctx: Context) -> Path:
         ctx.config_source = ENV_CONFIG
         text = from_env
     else:
-        raise CliError(Exit.CONFIG_INVALID, f"no configuration file was given: use --config PATH or set {ENV_CONFIG}", "config_not_given")
+        standard = standard_config_path(ctx.environ)
+        if standard is None:
+            raise CliError(Exit.CONFIG_INVALID, f"no configuration file was given and none exists in the standard location: use --config PATH or set "
+                           f"{ENV_CONFIG}", "config_not_given")
+        ctx.config_source = "standard location"
+        text = str(standard)
     path = Path(text)
     if not path.is_absolute():
         path = path.resolve()
@@ -274,8 +327,12 @@ def emit(ctx: Context, data: dict, lines: list[str], ok: bool = True) -> None:
 
 
 def fail(ctx: Context, error: CliError) -> int:
+    from seo_report import guidance
+    advice = guidance.explain(error.code)
     if ctx.args.json:
         body = {"ok": False, "exit_code": int(error.exit_code), "error": {"code": error.code, "message": error.message}}
+        if advice:
+            body["error"]["meaning"], body["error"]["fix"] = advice.meaning, advice.fix
         if error.details:
             body["details"] = error.details
         print(json.dumps(body, sort_keys=True))
@@ -283,6 +340,13 @@ def fail(ctx: Context, error: CliError) -> int:
         print(f"error: {error.message}", file=sys.stderr)
         for key, value in error.details.items():
             print(f"  {key}: {', '.join(map(str, value)) if isinstance(value, (list, tuple)) else value}", file=sys.stderr)
+        if advice:
+            print(f"  what it means: {advice.meaning}", file=sys.stderr)
+            print(f"  what to do:    {advice.fix}", file=sys.stderr)
+        for blocker in error.details.get("blockers", ()) if isinstance(error.details.get("blockers"), (list, tuple)) else ():
+            item = guidance.explain(blocker)
+            if item:
+                print(f"  - {blocker}: {item.fix}", file=sys.stderr)
         print(f"exit code {int(error.exit_code)}: {describe(error.exit_code)}", file=sys.stderr)
     return int(error.exit_code)
 
@@ -386,12 +450,13 @@ def _client_factory(ctx: Context, settings):
     return GoogleClientFactory(paths=auth.paths_from_settings(settings, ctx.environ))
 
 
-def _local_inputs(ctx: Context, settings):
-    """(registry, default sender, spreadsheet id) from local files and settings; configuration errors become exit code 3."""
+def _local_inputs(ctx: Context, settings, registry=None):
+    """(registry, default sender, spreadsheet id) from local files and settings; configuration errors become exit code 3.
+    `registry` (only `clients add --all-missing` on a device that has no registry file yet) replaces the registry file."""
     from seo_report import clients as cl
     from seo_report.client_config import load_client_registry
     try:
-        registry = load_client_registry(settings.clients_config_path)
+        registry = registry if registry is not None else load_client_registry(settings.clients_config_path)
     except (ClientConfigError, OSError):
         raise CliError(Exit.CONFIG_INVALID, "the client registry (clients_config) is missing or invalid", "client_registry_invalid") from None
     try:
@@ -403,12 +468,12 @@ def _local_inputs(ctx: Context, settings):
     return registry, sender, settings.reporting_spreadsheet_id
 
 
-def _read_workbook(ctx: Context, settings, only=None):
+def _read_workbook(ctx: Context, settings, only=None, registry=None):
     """Read the reporting workbook through the existing loader (read-only). Google problems become the matching exit codes."""
     from seo_report import client_loader
     from seo_report.cli_exit import BY_CATEGORY
     from seo_report.google_clients import load_workbook_clients
-    registry, sender, sheet_id = _local_inputs(ctx, settings)
+    registry, sender, sheet_id = _local_inputs(ctx, settings, registry)
     factory = _client_factory(ctx, settings)
     try:
         return registry, load_workbook_clients(factory, spreadsheet_id=sheet_id, registry=registry, default_sender=sender, only=only)
@@ -528,6 +593,8 @@ def default_handlers() -> dict:
                 ("verify", "live"): handle_verify_live}
     from seo_report import cli_report  # imported here: it imports this module
     handlers.update(cli_report.HANDLERS)
+    from seo_report import cli_operator
+    handlers.update(cli_operator.HANDLERS)
     for key, stage in DEFERRED.items():
         handlers[key] = deferred_handler(stage)
     return handlers

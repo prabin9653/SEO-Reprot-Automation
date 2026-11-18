@@ -76,7 +76,7 @@ installed at exactly those versions; no existing pin changed.
 **Logo:** `assets/jasper-logo.png` (default; `render.logo` overrides) — SHA-256
 `e7d5a332cd6aa1df034fa6326e4b61c1f2aae3219b0bf410e0b7461ce813f320`, 20139 bytes. Not modified in this stage.
 
-**Where they are expected.** The fonts are *not* bundled in the project: `render.fonts` in the runner settings must list both files by
+**Where they are expected.** (Update: the two fonts and `LICENSE_DEJAVU` are now also shipped, unchanged, in `assets/fonts` as the verified source that `seo setup device` copies from into `%LOCALAPPDATA%\JasperSEOReporting\fonts`; a test keeps them identical to matplotlib's copies. The report still reads the fonts only from the locations in `render.fonts`.) `render.fonts` in the runner settings must list both files by
 absolute path (see `config/runner.yaml.example`). The tests use the copies inside matplotlib's `mpl-data/fonts/ttf`. For a
 deployment, copy the two `.ttf` files and the licence file to a folder outside OneDrive, for example
 `C:\JasperSEO\assets\fonts\`, and point the settings at them.

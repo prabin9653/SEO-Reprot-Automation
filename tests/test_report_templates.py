@@ -162,13 +162,17 @@ def test_font_faces_are_generated_only_from_supplied_locations():
     assert 'src: local("DejaVu Sans"), url("fonts/DejaVuSans-Bold.ttf");' in html and "font-weight: 700" in html
 
 
-def test_the_dejavu_font_files_and_licence_exist_where_r0_found_them_and_are_not_copied():
+def test_the_dejavu_font_files_and_licence_exist_where_r0_found_them_and_the_bundled_copies_are_identical():
+    # Since the per-device setup (`seo setup device`) the two fonts and their licence are also shipped in assets/fonts, as the verified source it copies from. They must
+    # stay byte-for-byte the files R0 found in matplotlib (the report is rendered with exactly these bytes), with the licence beside them.
     import matplotlib
     folder = Path(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf"
+    bundled = ROOT / "assets" / "fonts"
     for name in ("DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "LICENSE_DEJAVU"):
         assert (folder / name).is_file(), name
-    assert not (ROOT / "assets" / "fonts").exists()
-    assert sorted(p.name for p in (ROOT / "assets").iterdir()) == ["jasper-logo.png"]
+        assert (bundled / name).read_bytes() == (folder / name).read_bytes(), name
+    assert sorted(p.name for p in bundled.iterdir()) == ["DejaVuSans-Bold.ttf", "DejaVuSans.ttf", "LICENSE_DEJAVU"]
+    assert sorted(p.name for p in (ROOT / "assets").iterdir()) == ["fonts", "jasper-logo.png"]
 
 
 def test_nothing_in_the_css_or_templates_depends_on_the_machine_or_the_network():

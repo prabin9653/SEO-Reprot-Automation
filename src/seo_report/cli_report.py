@@ -24,7 +24,7 @@ import datetime as dt
 import uuid
 from pathlib import Path
 
-from seo_report import cli, contracts
+from seo_report import cli, contracts, identity
 from seo_report.cli import CliError, emit, load_settings
 from seo_report.cli_exit import Exit, exit_code_for_batch, exit_code_for_response
 
@@ -116,7 +116,7 @@ def _request(ctx, ledger, client_key, period_id):
     """The request for `report run`: `run` normally, `retry` for a failed/blocked latest run (the pipeline's own admission rules still decide)."""
     now = _clock(ctx)()
     base = dict(request_id=str(uuid.uuid4()), client_key=client_key, period_id=period_id, requested_at=contracts.timestamp_of(now),
-                requested_by="cli:operator")
+                requested_by=identity.requested_by(ctx.environ))  # who ran it: `cli:name` or `web:name` (the Windows account), recorded in the ledger
     latest = ledger.latest_run(client_key, period_id)
     if latest is not None and latest.state in ("failed", "blocked"):
         key = f"retry:{client_key}/{period_id}:g{latest.generation}:a{latest.attempt_count}"
@@ -255,12 +255,35 @@ def handle_run(ctx) -> int:
     finally:
         ledger.close()
     item = summarize(response)
+    _share_activity(ctx, settings, item)
     code = Exit(item["exit_code"])
     lines = [_summary_line(item)]
+    lines += _advice_lines(item)
     if code != Exit.OK:
         lines.append(f"exit code {int(code)}: " + cli.describe(code))
     emit(ctx, item, lines, ok=code == Exit.OK)
     return int(code)
+
+
+def _share_activity(ctx, settings, item: dict) -> None:
+    """When a shared activity folder is configured, tell the team that this computer just generated a report (only for a newly finished, audited report; never for
+    `already_complete`). Best effort: it can never fail or change the run."""
+    if getattr(settings, "activity_dir", None) is None or item.get("outcome") != "succeeded" or item.get("state") not in _SETTLED:
+        return
+    from seo_report import activity
+    activity.record_done(settings.activity_dir, ctx.environ, client_key=item["client_key"], period_id=item["period_id"], pdf16=item.get("pdf16"), now=_clock(ctx)())
+
+
+def _advice_lines(item: dict) -> list[str]:
+    """Plain-language lines under a run summary: what an outcome or error code means and what to do. Text mode only (the data is unchanged)."""
+    from seo_report import guidance
+    lines = []
+    advice = guidance.explain(item["outcome"]) if item["outcome"] == "already_complete" else None
+    if advice is None and item.get("error"):
+        advice = guidance.explain(item["error"].get("code"))
+    if advice:
+        lines += [f"  what it means: {advice.meaning}", f"  what to do:    {advice.fix}"]
+    return lines
 
 
 # --- report batch -----------------------------------------------------------------------------------------------------------------------
@@ -293,6 +316,8 @@ def handle_batch(ctx) -> int:
         finally:
             ledger.close()
         results = [summarize(r) for r in outcome.results]
+        for item in results:
+            _share_activity(ctx, settings, item)
         batch_code = exit_code_for_batch(outcome)
         aborted = outcome.abort_reason if outcome.aborted else None
         not_started = len(outcome.not_started)
@@ -333,6 +358,7 @@ def run_view(ledger, run) -> dict:
             "acknowledged": bool(run.acknowledged), "finalized": finalized, "audited": audited, "audit_outcome": run.audit_outcome,
             "pdf16": run.pdf_sha256[:16] if run.pdf_sha256 else None, "engine_run_id": run.engine_run_id,
             "generation_date": run.generation_date, "created_at": run.created_at, "updated_at": run.updated_at, "finished_at": run.finished_at,
+            "finalized_at": run.finalized_at, "generated_by": identity.generated_by(ledger.requests_for_run(run.run_key)) if audited else None,
             "delivery": "not_tracked"}  # finalization and audit say nothing about delivery, which is not implemented
 
 

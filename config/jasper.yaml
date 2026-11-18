@@ -14,10 +14,10 @@ regional_profiles:
     address_lines:
       - 3402 E Pine Brook Way
       - Houston, TX 77059
-    website_label: Jasper IT Inc
+    website_label: https://jasperitinc.com/
     website_url: https://jasperitinc.com/
   Australia:
-    title: "Project Manager | Jasper IT Inc."
+    title: "Project Manager | Jasper IT Solutions"
     address_lines:
       - Ingleburn NSW 2565
     website_label: https://jasperitsolutions.com.au/

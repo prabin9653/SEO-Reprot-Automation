@@ -70,6 +70,9 @@ class LoadResult:
     clients: dict  # client_key -> ClientRun
     rejected: tuple  # Rejection
     skipped: tuple  # (client_key, code) for clients that are valid but not due for processing (status not active)
+    # (sheet_row, Client Name) of sheet clients that have no key in the registry. Kept OUT of `rejected` on purpose: rejections hold no names (they are logged
+    # and serialized); these names are for the operator's own console only (`clients check`, `clients add --all-missing`).
+    unregistered: tuple = ()
 
 
 def _blank(cell) -> bool:
@@ -106,7 +109,7 @@ def load_run_clients(client_rows, keyword_rows, *, registry: ClientRegistry, def
     name_col = _column(client_rows[0], cl.CLIENT_COLUMNS["client_name"])
     kw_name_col = _column(keyword_rows[0], cl.KEYWORD_COLUMNS["client_name"])
 
-    rejected, skipped, groups, kw_groups = [], [], {}, {}
+    rejected, skipped, groups, kw_groups, unregistered = [], [], {}, {}, []
     for number, row in enumerate(client_rows[1:], start=2):
         if all(_blank(c) for c in row):
             continue
@@ -134,6 +137,7 @@ def load_run_clients(client_rows, keyword_rows, *, registry: ClientRegistry, def
             client_key = registry.key_for(display_name)
         except ClientConfigError:
             rejected.append(Rejection(None, first_row, "client_not_in_registry"))
+            unregistered.append((first_row, display_name))
             continue
         if only is not None and client_key != only:
             continue
@@ -168,7 +172,7 @@ def load_run_clients(client_rows, keyword_rows, *, registry: ClientRegistry, def
             rejected.append(Rejection(client_key, first_row, "period_not_28_days"))
             continue
         loaded[client_key] = ClientRun(client_key, client, periods)
-    return LoadResult(loaded, tuple(rejected), tuple(skipped))
+    return LoadResult(loaded, tuple(rejected), tuple(skipped), tuple(unregistered))
 
 
 def load_from_workbook(spreadsheet_id: str, *, registry: ClientRegistry, service=None,

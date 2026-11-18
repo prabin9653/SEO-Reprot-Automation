@@ -204,3 +204,10 @@ def test_the_existing_parser_contract_is_unchanged():
     assert cl.KEYWORD_REQUIRED == ("client_name", "keyword", "previous_ranking", "current_ranking")
     whole = cl.build_clients([CLIENT_HEADER, client_row()], [KEYWORD_HEADER, keyword_row()], SENDER)
     assert whole[0].sheet_row == 2 and contracts.period_id_of(whole[0].report_start, whole[0].report_end)
+
+
+def test_sheet_clients_without_a_key_are_listed_by_name_outside_the_rejections():
+    result = load([client_row("Alpha Co"), client_row("Zeta Co")], [keyword_row(), keyword_row("Zeta Co")])
+    assert result.unregistered == ((3, "Zeta Co"),)
+    assert (None, 3, "client_not_in_registry") in rejected(result)
+    assert "Zeta" not in repr(result.rejected)  # rejections stay free of names; only `unregistered` carries them, for the operator's console

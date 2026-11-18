@@ -31,7 +31,7 @@ MAX_CONFIG_BYTES = 256 * 1024
 
 TOP_LEVEL = ("paths", "render", "workbooks", "execution")
 PATH_KEYS = ("output_root", "history_db", "ledger_db", "work_root", "clients_config", "sender_config", "oauth_client_file",
-             "oauth_cache_file")
+             "oauth_cache_file", "shared_activity_dir")
 RENDER_KEYS = ("logo", "fonts")
 FONT_KEYS = ("label", "path", "weight")
 WORKBOOK_KEYS = ("reporting_spreadsheet_id", "operational_spreadsheet_id")
@@ -94,6 +94,9 @@ class RunnerSettings:
     oauth_client_path: Path | None = None
     oauth_cache_path: Path | None = None
     heartbeat_interval_seconds: float = 60.0  # how often a running client's leases are renewed (at most a third of the lease)
+    # An optional folder the team shares (a synchronised or network folder) where each computer appends a small "report generated" line, so teammates can see
+    # that a report already exists elsewhere (`activity`). None = off: nothing is shared.
+    activity_dir: Path | None = None
 
 
 # --- helpers ----------------------------------------------------------------------------------------------------------------
@@ -365,6 +368,18 @@ def parse_settings(data, *, environ=None) -> RunnerSettings:
             if oauth_client is not None and found_key == client_key_text:
                 _fail("credential_paths_identical", name)
 
+    # The shared activity folder (optional): an absolute folder that may be synchronised (that is its purpose) but is never one of the storage locations, and may not
+    # hold a credential location. Only small text lines are written to it, one file per person and computer.
+    activity_dir = None
+    if paths.get("shared_activity_dir") is not None:
+        activity_dir = _absolute(paths["shared_activity_dir"], "paths.shared_activity_dir")
+        activity_key = canonical_key(activity_dir, "paths.shared_activity_dir")
+        if any(keys_overlap(activity_key, keys[other]) for other in ("paths.output_root", "paths.work_root", "paths.ledger_db", "paths.history_db")):
+            _fail("activity_dir_in_storage", "paths.shared_activity_dir")
+        for credential in (oauth_client, oauth_cache):
+            if credential is not None and keys_overlap(activity_key, canonical_key(credential, "paths.shared_activity_dir")):
+                _fail("activity_dir_holds_credentials", "paths.shared_activity_dir")
+
     clients_config = _absolute(paths["clients_config"], "paths.clients_config") if paths.get("clients_config") is not None else \
         PROJECT_ROOT / "config" / "clients.yaml"
     sender_config = _absolute(paths["sender_config"], "paths.sender_config") if paths.get("sender_config") is not None else \
@@ -420,7 +435,7 @@ def parse_settings(data, *, environ=None) -> RunnerSettings:
         max_automatic_attempts=int(_number(execution.get("max_automatic_attempts", 3),
                                            "execution.max_automatic_attempts", low=1, high=10, integer=True)),
         retry_delays_seconds=tuple(delays), stage_timeouts=stages, heartbeat_interval_seconds=heartbeat,
-        oauth_client_path=oauth_client, oauth_cache_path=oauth_cache)
+        oauth_client_path=oauth_client, oauth_cache_path=oauth_cache, activity_dir=activity_dir)
 
 
 def load_settings(path, *, environ=None) -> RunnerSettings:

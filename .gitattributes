@@ -1,0 +1,3 @@
+# The report is rendered with exactly these bytes (their SHA-256 values are checked by `seo setup device` and `doctor`):
+# never convert line endings or otherwise touch them.
+assets/fonts/* -text

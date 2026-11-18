@@ -232,10 +232,11 @@ def test_the_shipped_configuration_has_exactly_the_united_states_and_australia_p
     assert sorted(profiles) == ["Australia", "United States"]
     us, au = profiles["United States"], profiles["Australia"]
     assert us.address_lines == ("3402 E Pine Brook Way", "Houston, TX 77059")
-    assert (us.website_label, us.website_url) == ("Jasper IT Inc", "https://jasperitinc.com/")
+    assert (us.website_label, us.website_url) == ("https://jasperitinc.com/",) * 2
     assert au.address_lines == ("Ingleburn NSW 2565",)
     assert (au.website_label, au.website_url) == ("https://jasperitsolutions.com.au/",) * 2
-    assert us.title == au.title == "Project Manager | Jasper IT Inc."
+    assert us.title == "Project Manager | Jasper IT Inc."
+    assert au.title == "Project Manager | Jasper IT Solutions"
 
 
 def test_the_manager_columns_c_d_e_are_loaded_into_the_sender_and_trimmed():
