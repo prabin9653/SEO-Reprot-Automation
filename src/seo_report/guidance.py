@@ -83,12 +83,17 @@ _ERRORS = {
     "ledger_missing": _G("No report has been run on this device yet.", "Nothing to change."),
 }
 
+_SHARED = {
+    "shared_reports_not_configured": _G("No shared reports folder is set on this computer, so there is nowhere to copy reports to.",
+                                        "Add `shared_reports_dir: \"<folder>\"` under `paths:` in the runner settings (for example your Google Drive folder), then run `report export`."),
+}
+
 _OUTCOMES = {
     "already_complete": _G("A finished report already exists for this client and period; finished reports are never overwritten.",
                            "Open it with `report open --client <key>`, or use a different period (change the sheet dates), or make a labelled `report preview`."),
 }
 
-_ALL = {**_ROWS, **_ERRORS, **_OUTCOMES}
+_ALL = {**_ROWS, **_ERRORS, **_OUTCOMES, **_SHARED}
 
 
 def explain(code) -> Guidance | None:

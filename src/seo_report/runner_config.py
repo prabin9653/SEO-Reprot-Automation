@@ -31,7 +31,7 @@ MAX_CONFIG_BYTES = 256 * 1024
 
 TOP_LEVEL = ("paths", "render", "workbooks", "execution")
 PATH_KEYS = ("output_root", "history_db", "ledger_db", "work_root", "clients_config", "sender_config", "oauth_client_file",
-             "oauth_cache_file", "shared_activity_dir")
+             "oauth_cache_file", "shared_activity_dir", "shared_reports_dir")
 RENDER_KEYS = ("logo", "fonts")
 FONT_KEYS = ("label", "path", "weight")
 WORKBOOK_KEYS = ("reporting_spreadsheet_id", "operational_spreadsheet_id")
@@ -97,6 +97,9 @@ class RunnerSettings:
     # An optional folder the team shares (a synchronised or network folder) where each computer appends a small "report generated" line, so teammates can see
     # that a report already exists elsewhere (`activity`). None = off: nothing is shared.
     activity_dir: Path | None = None
+    # An optional folder the team shares (for example Google Drive for desktop) where each finished report PDF is COPIED and a read-only `dashboard.html` is kept. The
+    # original report stays in the output folder. None = off.
+    reports_dir: Path | None = None
 
 
 # --- helpers ----------------------------------------------------------------------------------------------------------------
@@ -380,6 +383,20 @@ def parse_settings(data, *, environ=None) -> RunnerSettings:
             if credential is not None and keys_overlap(activity_key, canonical_key(credential, "paths.shared_activity_dir")):
                 _fail("activity_dir_holds_credentials", "paths.shared_activity_dir")
 
+    # The shared reports folder (optional): finished PDFs are copied here for teammates. Like the activity folder it may be synchronised but is never a storage
+    # location, never inside the project, and never holds a credential location.
+    reports_dir = None
+    if paths.get("shared_reports_dir") is not None:
+        reports_dir = _absolute(paths["shared_reports_dir"], "paths.shared_reports_dir")
+        reports_key = canonical_key(reports_dir, "paths.shared_reports_dir")
+        if any(keys_overlap(reports_key, keys[other]) for other in ("paths.output_root", "paths.work_root", "paths.ledger_db", "paths.history_db")):
+            _fail("reports_dir_in_storage", "paths.shared_reports_dir")
+        if keys_overlap(reports_key, project):
+            _fail("reports_dir_in_project", "paths.shared_reports_dir")
+        for credential in (oauth_client, oauth_cache):
+            if credential is not None and keys_overlap(reports_key, canonical_key(credential, "paths.shared_reports_dir")):
+                _fail("reports_dir_holds_credentials", "paths.shared_reports_dir")
+
     clients_config = _absolute(paths["clients_config"], "paths.clients_config") if paths.get("clients_config") is not None else \
         PROJECT_ROOT / "config" / "clients.yaml"
     sender_config = _absolute(paths["sender_config"], "paths.sender_config") if paths.get("sender_config") is not None else \
@@ -435,7 +452,8 @@ def parse_settings(data, *, environ=None) -> RunnerSettings:
         max_automatic_attempts=int(_number(execution.get("max_automatic_attempts", 3),
                                            "execution.max_automatic_attempts", low=1, high=10, integer=True)),
         retry_delays_seconds=tuple(delays), stage_timeouts=stages, heartbeat_interval_seconds=heartbeat,
-        oauth_client_path=oauth_client, oauth_cache_path=oauth_cache, activity_dir=activity_dir)
+        oauth_client_path=oauth_client, oauth_cache_path=oauth_cache, activity_dir=activity_dir,
+        reports_dir=reports_dir)
 
 
 def load_settings(path, *, environ=None) -> RunnerSettings:

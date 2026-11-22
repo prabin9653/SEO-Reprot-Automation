@@ -16,7 +16,7 @@ about 20 minutes the first time.
 
 | # | Command / action | What it does |
 |---|---|---|
-| 1 | `.\scripts\install_device.ps1` | Creates the private Python environment, installs the tested packages, downloads the PDF browser. |
+| 1 | `powershell -ExecutionPolicy Bypass -File .\scripts\install_device.ps1` (plain `.\scripts\install_device.ps1` may be blocked by Windows) | Creates the private Python environment, installs the tested packages, downloads the PDF browser. |
 | 2 | `.\seo.cmd setup device --spreadsheet-id "<workbook address>"` | Creates your per-user folders, installs the report fonts (verified), writes your settings file, locks the credentials folder to your account, and **lists what is still missing**. |
 | 3 | Save the OAuth client file as the path step 2 printed (`...\credentials\client.json`) | Never put it in the project folder. |
 | 4 | `.\seo.cmd setup auth` | Opens a browser. Sign in with the team's Google account and allow access. |

@@ -22,12 +22,13 @@ GA4 ─────────────────────────�
 |---|---|
 | set up my computer for the first time | [docs/team_setup.md](docs/team_setup.md) |
 | create reports day to day | [docs/cheat_sheet.md](docs/cheat_sheet.md) and [docs/operator_quickstart.md](docs/operator_quickstart.md) |
+| share finished reports with teammates (Google Drive folder and read-only dashboard) | [docs/shared_reports.md](docs/shared_reports.md) |
 | look up a command, exit code or check | [docs/r8/r86_cli_reference.md](docs/r8/r86_cli_reference.md) |
 
 The short version, from the project folder in a normal PowerShell window:
 
 ```powershell
-.\scripts\install_device.ps1                                  # once: private Python environment, tested packages, PDF browser
+powershell -ExecutionPolicy Bypass -File .\scripts\install_device.ps1   # once: private Python environment, tested packages, PDF browser
 .\seo.cmd setup device --spreadsheet-id "<workbook address>"  # once: folders, fonts, settings; lists what is still missing
 .\seo.cmd setup auth                                          # once: sign in with the team's Google account
 .\seo.cmd web                                                 # every day: the local page (this computer only)

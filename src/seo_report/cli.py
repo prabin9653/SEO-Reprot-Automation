@@ -195,6 +195,9 @@ def build_parser() -> argparse.ArgumentParser:
     open_.add_argument("--client", type=client_key_arg, required=True, metavar="CLIENT_KEY")
     open_.add_argument("--period", type=period_arg, metavar="YYYY-MM-DD_YYYY-MM-DD")
     open_.add_argument("--no-open", action="store_true", help="only print the location; do not open the PDF")
+    export = leaf(report, "export", help="copy finished reports into the shared reports folder (paths.shared_reports_dir) and rebuild its dashboard; never overwrites, "
+                                        "never contacts Google")
+    export.add_argument("--client", type=client_key_arg, metavar="CLIENT_KEY", help="only this client (default: every finished report)")
     batch = leaf(report, "batch", help="run clients one after another (needs --production)")
     batch.add_argument("--period", type=period_arg, required=True, metavar="YYYY-MM-DD_YYYY-MM-DD")
     batch.add_argument("--client", type=client_key_arg, action="append", metavar="CLIENT_KEY", help="restrict to these clients (repeatable)")
@@ -228,6 +231,8 @@ def build_parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup", help="attended one-time set-up").add_subparsers(
         dest="subcommand", required=True, metavar="WHAT")
     leaf(setup, "auth", help="sign in to Google in a browser (only at an attended console); never part of normal reporting")
+    leaf(setup, "drive", help="OPTIONAL one-time Google sign-in so dashboard links open each PDF directly (permission: Drive file names and IDs, read-only; its own "
+                              "token file; reporting never uses it); only at an attended console")
     device = leaf(setup, "device", help="one-time setup of THIS computer: per-user folders, the report fonts, the settings file; says what is left to do "
                                         "(needs no settings file, contacts nothing, installs nothing)")
     device.add_argument("--spreadsheet-id", metavar="ID_OR_ADDRESS", help="the reporting workbook (its Google Sheets address or ID); needed the first time")

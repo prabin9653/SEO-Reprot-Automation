@@ -28,7 +28,7 @@ from test_pdf_renderer import FONT_FILES, LOGO
 PERIOD = "2026-09-29_2026-10-26"
 ALL_KEYS = [("system-info", None), ("doctor", None), ("clients", "list"), ("clients", "validate"), ("setup", "auth"), ("verify", "live"), ("report", "dry-run"), ("report", "preview"),
             ("report", "run"), ("report", "batch"), ("status", None), ("recovery", "inspect"), ("recovery", "acknowledge"), ("recovery", "cancel"),
-            ("clients", "check"), ("clients", "add"), ("report", "open"), ("web", None), ("setup", "device")]
+            ("clients", "check"), ("clients", "add"), ("report", "open"), ("report", "export"), ("web", None), ("setup", "device"), ("setup", "drive")]
 RUN_KEY = f"example-co/{PERIOD}"
 
 

@@ -194,9 +194,9 @@ def _write_token(path: Path, creds: Credentials) -> None:
         raise
 
 
-def _load(path: Path) -> Credentials:
+def _load(path: Path, scopes=None) -> Credentials:
     try:
-        return Credentials.from_authorized_user_file(str(path), SCOPES)
+        return Credentials.from_authorized_user_file(str(path), SCOPES if scopes is None else scopes)
     except (FileNotFoundError, NotADirectoryError) as error:
         raise AuthRequiredError("auth_token_missing") from error
     except PermissionError as error:
@@ -216,6 +216,12 @@ def get_credentials(*, token_path=None, refresh_request=None, paths: CredentialP
     return _credentials_and_outcome(token_path, refresh_request, paths)[0]
 
 
+def get_credentials_for_scopes(scopes, *, token_path, refresh_request=None) -> Credentials:
+    """Like `get_credentials` (never interactive, same errors) for a SEPARATE token file that holds other scopes: only the optional Drive sign-in uses it
+    (`drive_links`). The reporting entry points above are unchanged."""
+    return _credentials_and_outcome(token_path, refresh_request, None, list(scopes))[0]
+
+
 REFRESH_NOT_NEEDED = "not_needed"  # the cached credentials were already valid: no refresh was attempted and nothing was written
 REFRESH_OK = "ok"  # the cached credentials needed a refresh and it succeeded (the refreshed token is then cached again)
 
@@ -227,9 +233,9 @@ def get_credentials_with_status(*, token_path=None, refresh_request=None, paths:
     return _credentials_and_outcome(token_path, refresh_request, paths)
 
 
-def _credentials_and_outcome(token_path, refresh_request, paths):
+def _credentials_and_outcome(token_path, refresh_request, paths, scopes=None):
     path = Path(token_path) if token_path is not None else (paths.token_file if paths is not None else Path(TOKEN_PATH))
-    creds = _load(path)
+    creds = _load(path) if scopes is None else _load(path, scopes)
     if creds.valid:
         return creds, REFRESH_NOT_NEEDED
     if not (creds.expired and creds.refresh_token):
@@ -267,7 +273,7 @@ def _attended() -> bool:
 
 
 def run_setup(*, client_secret_path=None, token_path=None, attended: bool | None = None, flow_factory=None,
-              paths: CredentialPaths | None = None) -> Path:
+              paths: CredentialPaths | None = None, scopes=None) -> Path:
     """Sign in once in a browser and cache the token. Call only from the setup command, by a person at the console.
 
     Refuses (`auth_interactive_blocked`) when no attended console exists, which is always the case for a scheduled task or
@@ -281,7 +287,7 @@ def run_setup(*, client_secret_path=None, token_path=None, attended: bool | None
         from google_auth_oauthlib.flow import InstalledAppFlow  # imported here and nowhere else
         flow_factory = InstalledAppFlow.from_client_secrets_file
     try:
-        flow = flow_factory(str(secret), SCOPES)
+        flow = flow_factory(str(secret), SCOPES if scopes is None else scopes)
     except (FileNotFoundError, NotADirectoryError) as error:
         raise AuthRequiredError("auth_token_missing") from error
     except PermissionError as error:

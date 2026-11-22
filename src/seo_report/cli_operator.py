@@ -330,6 +330,97 @@ def cli_redact(ctx, path) -> str:
     return preflight.redact_path(path, ctx.environ)
 
 
+# --- report export (the shared reports folder) --------------------------------------------------------------------------------------------
+
+def publish_to_shared(ctx, settings, keys=None) -> dict:
+    """Copy finished reports to `paths.shared_reports_dir` and rebuild its dashboard (see `shared_reports`). Reads the ledger and the local client registry only."""
+    from seo_report import shared_reports
+    from seo_report.cli_report import _clock, open_ledger
+    try:
+        names = {entry.client_key: entry.name for entry in cli._local_inputs(ctx, settings)[0].entries}
+    except Exception:  # noqa: BLE001 - names are a convenience; the key is shown instead
+        names = {}
+    ledger = open_ledger(ctx, settings, "read")
+    try:
+        def describe(key, period):
+            state, when = _report_info(ledger, key, period)
+            return (when, _generated_by(ledger, key, period)) if state == "done" else None
+        return shared_reports.publish(settings, names=names, describe=describe, keys=keys, now=_clock(ctx)(), link_resolver=_link_resolver(ctx, settings))
+    finally:
+        if ledger is not None:
+            ledger.close()
+
+
+def _link_resolver(ctx, settings):
+    """Looks up the Google Drive IDs that make dashboard links open a PDF directly (optional: see `drive_links`). None when the credential locations are unusable."""
+    from seo_report import auth, drive_links
+    try:
+        paths = auth.paths_from_settings(settings, ctx.environ)
+    except Exception:  # noqa: BLE001
+        return None
+    return lambda names: drive_links.resolve(settings, paths, names)
+
+
+_LINK_NOTES = {"drive_signin_missing": "Dashboard links open a Drive search (one extra click). For links that open the PDF directly, run `setup drive` once, then `report export`.",
+               "drive_lookup_unavailable": "Direct links could not be looked up just now (Drive may still be uploading the new files, or the Drive API is not enabled). "
+                                           "Run `report export` again in a few minutes."}
+
+
+def shared_lines(result: dict) -> list[str]:
+    lines = []
+    if result["copied"]:
+        lines.append(f"Copied to the shared folder: {', '.join(result['copied'])}")
+    if result["differs"]:
+        lines.append(f"WARNING: a different file already exists in the shared folder (left untouched): {', '.join(result['differs'])}")
+    if result["failed"]:
+        lines.append(f"WARNING: could not copy to the shared folder: {', '.join(result['failed'])}. The report itself is fine; run `report export` to try again.")
+    return lines
+
+
+def handle_report_export(ctx) -> int:
+    settings = load_settings(ctx)
+    if getattr(settings, "reports_dir", None) is None:
+        raise CliError(Exit.CONFIG_INVALID, "no shared reports folder is set (paths.shared_reports_dir in the runner settings)", "shared_reports_not_configured")
+    key = ctx.args.client
+    result = publish_to_shared(ctx, settings, keys={key} if key else None)
+    shown = cli_redact(ctx, settings.reports_dir)
+    problems = bool(result["failed"] or result["differs"] or not result["dashboard"])
+    lines = [f"Shared reports folder: {shown}",
+             f"  copied {len(result['copied'])}, already there {result['already_there']}, different file left alone {len(result['differs'])}, failed {len(result['failed'])}",
+             "  dashboard.html " + ("updated" if result["dashboard"] else "NOT written (see the warning above or check the folder)")]
+    lines += ["  " + line for line in shared_lines(result)]
+    lines.append(f"  direct PDF links in the dashboard: {result['direct_links']}")
+    if result.get("link_note") in _LINK_NOTES:
+        lines.append("  " + _LINK_NOTES[result["link_note"]])
+    if result["not_recorded"]:
+        lines.append(f"  {len(result['not_recorded'])} report folder(s) are not recorded as finished in this computer's ledger and were skipped.")
+    data = {"folder": shown, "copied": result["copied"], "already_there": result["already_there"], "differs": result["differs"], "failed": result["failed"],
+            "not_recorded": len(result["not_recorded"]), "dashboard": result["dashboard"], "direct_links": result["direct_links"], "link_note": result["link_note"]}
+    emit(ctx, data, lines, ok=not problems)
+    return int(Exit.CONFIG_INVALID if problems else Exit.OK)
+
+
+# --- setup drive (optional: direct links) -------------------------------------------------------------------------------------------------
+
+def handle_setup_drive(ctx) -> int:
+    """Attended Google sign-in for the OPTIONAL Drive permission (file names and IDs only), cached in its own token file. Reporting never uses it."""
+    from seo_report import auth, drive_links
+    settings = load_settings(ctx)
+    paths = auth.paths_from_settings(settings, ctx.environ)
+    runner = ctx.extra.get("setup_runner", auth.run_setup)  # the same test seam as `setup auth`
+    if auth.path_status(paths.client_file) != "present" and "setup_runner" not in ctx.extra:
+        raise CliError(Exit.AUTH_REQUIRED, "the OAuth client file is not available at the configured location; setup cannot start (nothing was created or changed)",
+                       "oauth_client_file_missing")
+    try:
+        runner(paths=paths, token_path=drive_links.token_path(paths), scopes=drive_links.DRIVE_SCOPES)
+    except auth.AuthRequiredError as error:
+        raise CliError(Exit.AUTH_REQUIRED, f"setup did not complete ({error.code}); it needs an interactive console of the Windows account that runs the reports",
+                       error.code) from error
+    emit(ctx, {"setup": "completed", "permission": "drive.metadata.readonly"},
+         ["Drive sign-in cached (its own file; the reporting sign-in was not changed). Next: `report export` makes the dashboard links open the PDFs directly."])
+    return int(Exit.OK)
+
+
 # --- setup device -------------------------------------------------------------------------------------------------------------------------
 
 def handle_setup_device(ctx) -> int:
@@ -377,4 +468,4 @@ def handle_web(ctx) -> int:
 
 
 HANDLERS = {("clients", "check"): handle_clients_check, ("clients", "add"): handle_clients_add, ("report", "open"): handle_report_open,
-            ("web", None): handle_web, ("setup", "device"): handle_setup_device}
+            ("report", "export"): handle_report_export, ("web", None): handle_web, ("setup", "device"): handle_setup_device, ("setup", "drive"): handle_setup_drive}

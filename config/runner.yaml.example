@@ -30,6 +30,11 @@ paths:
   # not be one of the storage folders or hold credentials. One file per person and computer; nothing is ever rewritten.
   # shared_activity_dir: D:\TeamShare\seo-activity
 
+  # Optional: a folder teammates can read (for example a Google Drive for desktop folder). Every finished report PDF is COPIED there as <client-key>\<client-key>_<period>.pdf (verified,
+  # never overwritten) and a read-only dashboard.html is kept up to date. The original stays in output_root. It may be synchronised, but may not be one of the storage
+  # folders, inside the project, or hold credentials. Share it with named people only: it holds client reports. Off when omitted.
+  # shared_reports_dir: G:\My Drive\SEO Reports
+
 render:
   # logo defaults to assets/jasper-logo.png in the project.
   # The report font is DejaVu Sans (regular and bold). Point at the two font files; the licence permits bundling.

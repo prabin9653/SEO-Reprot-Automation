@@ -256,9 +256,11 @@ def handle_run(ctx) -> int:
         ledger.close()
     item = summarize(response)
     _share_activity(ctx, settings, item)
+    shared_lines = _share_reports(ctx, settings, [item])
     code = Exit(item["exit_code"])
     lines = [_summary_line(item)]
     lines += _advice_lines(item)
+    lines += shared_lines
     if code != Exit.OK:
         lines.append(f"exit code {int(code)}: " + cli.describe(code))
     emit(ctx, item, lines, ok=code == Exit.OK)
@@ -272,6 +274,21 @@ def _share_activity(ctx, settings, item: dict) -> None:
         return
     from seo_report import activity
     activity.record_done(settings.activity_dir, ctx.environ, client_key=item["client_key"], period_id=item["period_id"], pdf16=item.get("pdf16"), now=_clock(ctx)())
+
+
+def _share_reports(ctx, settings, items) -> list[str]:
+    """When a shared reports folder is configured, copy the newly finished reports there and rebuild its dashboard. Returns lines for the console. Best effort: it can
+    never fail or change the run (a problem is reported as a warning and `report export` repeats it)."""
+    if getattr(settings, "reports_dir", None) is None:
+        return []
+    keys = {item["client_key"] for item in items if item.get("outcome") == "succeeded" and item.get("state") in _SETTLED}
+    if not keys:
+        return []
+    try:
+        from seo_report import cli_operator
+        return cli_operator.shared_lines(cli_operator.publish_to_shared(ctx, settings, keys=keys))
+    except Exception:  # noqa: BLE001
+        return ["WARNING: the shared reports folder could not be updated. The report itself is fine; run `report export` to try again."]
 
 
 def _advice_lines(item: dict) -> list[str]:
@@ -305,7 +322,7 @@ def handle_batch(ctx) -> int:
     rejected = [{"client_key": r.client_key, "sheet_row": r.sheet_row, "code": r.code} for r in loaded.rejected
                 if not wanted or r.client_key in wanted or r.client_key is None]
     skipped = [{"client_key": k, "code": c} for k, c in loaded.skipped if not wanted or k in wanted]
-    results, batch_code = [], Exit.OK
+    results, batch_code, shared_lines = [], Exit.OK, []
     if due:
         factory = cli._client_factory(ctx, settings)
         services = _services(ctx, settings, loaded, registry, factory)
@@ -318,6 +335,7 @@ def handle_batch(ctx) -> int:
         results = [summarize(r) for r in outcome.results]
         for item in results:
             _share_activity(ctx, settings, item)
+        shared_lines = _share_reports(ctx, settings, results)
         batch_code = exit_code_for_batch(outcome)
         aborted = outcome.abort_reason if outcome.aborted else None
         not_started = len(outcome.not_started)
@@ -336,6 +354,7 @@ def handle_batch(ctx) -> int:
     lines += [f"  REJECTED row {r['sheet_row']} ({r['client_key'] or 'unknown client'}): {r['code']}" for r in rejected]
     lines += [f"  skipped {s['client_key']}: {s['code']}" for s in skipped]
     lines += [f"  NOT ELIGIBLE: {key} (unknown, rejected or inactive)" for key in not_eligible]
+    lines += [f"  {line}" for line in shared_lines]
     if aborted:
         lines.append(f"  BATCH STOPPED ({aborted}); {not_started} request(s) were not started")
     if code != Exit.OK:

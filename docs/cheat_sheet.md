@@ -42,10 +42,11 @@ Every message says **what it means** and **what to do**. The usual ones:
 .\seo.cmd verify live --client KEY --live     # Google check, valid 7 days
 .\seo.cmd report run --client KEY --period START_END --production
 .\seo.cmd report open --client KEY
+.\seo.cmd report export                       # copy finished PDFs to the shared Drive folder and refresh its dashboard
 .\seo.cmd doctor                              # full technical check of this computer
 ```
 
 ## Rules to remember
 * A finished report is never overwritten or deleted.
-* Reports live on the computer that made them. Share finished PDFs yourselves (a shared folder).
+* Reports live on the computer that made them. With `shared_reports_dir` set (see `docs/shared_reports.md`) each finished PDF is also copied to the shared folder, which holds a read-only `dashboard.html`.
 * Never put the Google credential files in the project, e-mail or chat.
