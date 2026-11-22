@@ -116,6 +116,32 @@ def test_a_file_drive_has_not_synchronised_yet_keeps_the_search_link_and_is_retr
     assert ids == {NAME: FILE_ID}
 
 
+def test_a_file_copied_just_now_is_looked_up_again_after_short_waits_until_drive_has_it(tmp_path, monkeypatch):
+    settings, paths = _Settings(tmp_path), _paths(tmp_path)
+    naps, answers = [], iter([[], [], [FILE_ID]])  # not there, not there, then uploaded
+
+    class Slow(FakeDrive):
+        def list(self, q, fields, pageSize, spaces):
+            self.table = {NAME: next(answers)}
+            return super().list(q, fields, pageSize, spaces)
+
+    monkeypatch.setattr(dl, "_sleep", naps.append)
+    service = Slow({})
+    ids, note = dl.resolve(settings, paths, [NAME], fresh=[NAME], service_factory=lambda c: service, credentials_getter=lambda: object())
+    assert ids == {NAME: FILE_ID} and note is None and naps == [10, 20] and len(service.queries) == 3
+
+
+def test_the_waiting_is_bounded_and_only_for_fresh_files(tmp_path, monkeypatch):
+    settings, paths = _Settings(tmp_path), _paths(tmp_path)
+    naps = []
+    monkeypatch.setattr(dl, "_sleep", naps.append)
+    ids, _ = dl.resolve(settings, paths, [NAME], fresh=[NAME], service_factory=lambda c: FakeDrive({}), credentials_getter=lambda: object())
+    assert ids == {} and naps == list(dl.WAIT_SECONDS) and sum(naps) <= 60  # gives up after about a minute
+    naps.clear()
+    dl.resolve(settings, paths, [NAME], service_factory=lambda c: FakeDrive({}), credentials_getter=lambda: object())  # not fresh: one try, no waiting
+    assert naps == []
+
+
 def test_without_the_drive_sign_in_nothing_is_looked_up_and_the_note_says_what_to_do(tmp_path):
     settings, paths = _Settings(tmp_path), _paths(tmp_path)  # the Drive token file does not exist
     assert dl.resolve(settings, paths, [NAME], service_factory=lambda c: _never()) == ({}, dl.NOTE_NEEDS_SETUP)
@@ -165,11 +191,11 @@ def test_publish_uses_the_resolver_and_survives_a_broken_one(tmp_path):
     settings = type("S", (), {"reports_dir": shared, "output_root": out})()
     describe = lambda key, period: ("2026-11-17T20:45:00+00:00", "maria")  # noqa: E731
     asked = []
-    result = sr.publish(settings, names={}, describe=describe, now=NOW, link_resolver=lambda names: asked.append(names) or ({NAME: FILE_ID}, None))
-    assert asked == [[NAME]] and result["direct_links"] == 1 and result["link_note"] is None
+    result = sr.publish(settings, names={}, describe=describe, now=NOW, link_resolver=lambda names, fresh: asked.append((names, fresh)) or ({NAME: FILE_ID}, None))
+    assert asked == [([NAME], [NAME])] and result["direct_links"] == 1 and result["link_note"] is None
     assert f"/file/d/{FILE_ID}/view" in (shared / "dashboard.html").read_text(encoding="utf-8")
 
-    def broken(names):
+    def broken(names, fresh):
         raise RuntimeError("x")
 
     result = sr.publish(settings, names={}, describe=describe, now=NOW, link_resolver=broken)

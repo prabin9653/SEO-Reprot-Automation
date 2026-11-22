@@ -13,7 +13,9 @@ folder and keep one read-only page, `dashboard.html`, next to them.
    (use the real path of the folder on your computer; it must not be the project folder, the output folder or the credentials folder).
 4. Copy the reports you already have: `.\seo.cmd report export`.
 
-From then on every `report run` / `report batch` copies its new PDF and refreshes the dashboard by itself.
+From then on every `report run` / `report batch` copies its new PDF and refreshes the dashboard by itself. You can also press **Refresh dashboard** on the web page
+(or run `.\seo.cmd report export`) at any time: it copies anything missing and rebuilds the page. The page changes only when reports are made or exported, **not** when
+someone edits the Google Sheet (it lists finished reports only; "waiting to run" is shown on the operator's web page after Refresh from the sheet).
 
 ## What is in the folder
 ```
@@ -36,8 +38,9 @@ which only the Google Drive API can give. One-time, on the operator computer:
 2. `.\seo.cmd setup drive` and sign in with the team account. This permission is **read-only and only covers file names and IDs** (no file content, no changes), but it can
    see the names of every file in that Drive. It is stored in its own file (`token_drive.json`, in the locked credentials folder) and is used only by `report export` and the
    automatic copy; reporting never uses it, and the reporting sign-in and the 7-day verification are not changed.
-3. `.\seo.cmd report export` (repeat it a few minutes after new reports, once Drive has finished uploading them). Each report's ID is looked up once and remembered on this
-   computer (`drive_file_ids.json` beside the ledger). A report whose ID is not found yet keeps the search link.
+3. `.\seo.cmd report export`. Each report's ID is looked up once and remembered on this computer (`drive_file_ids.json` beside the ledger). A report just copied is looked
+   up again a few times over about a minute, because Drive uploads a new file a little after it is copied. A report whose ID is still not found keeps the search link:
+   press **Refresh dashboard** (or run `report export`) again a few minutes later.
 While the Google consent screen is in Testing mode this sign-in also expires after about 7 days; the links already in the dashboard keep working, only new lookups need
 `setup drive` again.
 

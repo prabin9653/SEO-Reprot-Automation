@@ -194,7 +194,7 @@ def test_extra_fields_never_become_command_line_options(server):
 
 
 def test_the_commands_the_page_can_start_are_exactly_these():
-    assert sorted(webui.ACTIONS) == ["run", "verify"] and sorted(webui.READ_ONLY) == ["check", "device", "history", "open", "register"]
+    assert sorted(webui.ACTIONS) == ["run", "verify"] and sorted(webui.READ_ONLY) == ["check", "device", "export", "history", "open", "register"]
     assert webui.ACTIONS["verify"]({"client": "k"}) == ["verify", "live", "--client", "k", "--live"]
     assert "--production" in webui.ACTIONS["run"]({"client": "k", "period": PERIOD})
     assert not any(token in " ".join(sum((b({"client": "k", "period": PERIOD, "name": "N"}) for b in webui.READ_ONLY.values()), []))
@@ -221,6 +221,7 @@ def test_only_one_job_runs_at_a_time(server):
     assert first[0] == 202
     assert call(server, "POST", "/api/jobs", {"steps": [{"action": "verify", "client": "b-co"}]})[0] == 409
     assert call(server, "POST", "/api/register", {"name": "New Co"})[0] == 409
+    assert call(server, "POST", "/api/export", {})[0] == 409  # the shared folder is not touched while a report is being made
     active = call(server, "GET", "/api/jobs")[1]["active"]
     assert active is not None and active["id"] == first[1]["job"]["id"]
     server.fake.gate.set()
@@ -292,6 +293,14 @@ def test_device_history_open_and_register_run_only_their_own_commands(server):
     assert status == 200 and body["ok"] is True
     assert server.fake.calls == [["system-info"], ["status", "--client", "a-co"], ["report", "open", "--client", "a-co", "--period", PERIOD],
                                  ["clients", "add", "--name", "New Co"]]
+
+
+def test_the_dashboard_button_runs_only_report_export_and_says_what_it_did(server):
+    status, body, _ = call(server, "POST", "/api/export", {"client": "a-co", "anything": "ignored"})
+    assert status == 200 and server.fake.calls == [["report", "export"]]  # no argument from the page reaches the command
+    summary = webui.summarize("export", 0, {"copied": ["a/p"], "already_there": 3, "direct_links": 2, "link_note": "drive_signin_missing"})
+    assert summary["ok"] is True and "1 copied, 3 already there, 2 direct" in summary["summary"] and "setup drive" in summary["summary"]
+    assert "not fully updated" in webui.summarize("export", 3, {"copied": [], "failed": ["a/p"]})["summary"]
 
 
 @pytest.mark.parametrize("path,body", [("open", {"client": "../x"}), ("open", {}), ("register", {"name": " padded "}), ("register", {"name": ""}),

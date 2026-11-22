@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 
 LOGGER = logging.getLogger("seo_report.drive_links")
@@ -27,6 +28,8 @@ CACHE_NAME = "drive_file_ids.json"
 _ID = re.compile(r"[A-Za-z0-9_-]{10,80}")
 _NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,62}_\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.pdf")
 MAX_LOOKUPS = 200
+WAIT_SECONDS = (10, 20, 30)  # extra tries for a file that was copied just now and that Drive may not have uploaded yet
+_sleep = time.sleep
 
 NOTE_NEEDS_SETUP = "drive_signin_missing"
 NOTE_UNAVAILABLE = "drive_lookup_unavailable"
@@ -95,9 +98,10 @@ def find_id(service, name: str):
     return found[0] if len(found) == 1 else None
 
 
-def resolve(settings, paths, names, *, service_factory=None, credentials_getter=None):
+def resolve(settings, paths, names, *, fresh=(), service_factory=None, credentials_getter=None):
     """`(ids, note)`: Drive IDs (`name -> id`) for as many of these unique file names as can be found, and None or a fixed note code saying why the rest could not be.
-    Never raises. `service_factory` and `credentials_getter` exist for tests."""
+    `fresh` names the files copied just now: Drive may not have uploaded them yet, so those still missing are looked up again after short waits (`WAIT_SECONDS`, at most
+    about a minute in all); every other missing file is tried once. Never raises. `service_factory` and `credentials_getter` exist for tests."""
     wanted = sorted({n for n in names if isinstance(n, str) and _NAME.fullmatch(n)})[:MAX_LOOKUPS]
     ids = {}
     try:
@@ -117,13 +121,25 @@ def resolve(settings, paths, names, *, service_factory=None, credentials_getter=
         except auth.AuthRequiredError:
             return ids, NOTE_NEEDS_SETUP
         service = (service_factory or build_service)(credentials)
-        changed = False
-        for name in missing:
-            found = find_id(service, name)
-            if found:
-                ids[name] = found
-                cache[name] = found
-                changed = True
+
+        def look(batch):
+            found_any = False
+            for name in batch:
+                found = find_id(service, name)
+                if found:
+                    ids[name] = found
+                    cache[name] = found
+                    found_any = True
+            return found_any
+
+        changed = look(missing)
+        waiting = [n for n in missing if n not in ids and n in set(fresh)]
+        for delay in WAIT_SECONDS:
+            if not waiting:
+                break
+            _sleep(delay)  # Drive uploads a new file a little after it is copied
+            changed = look(waiting) or changed
+            waiting = [n for n in waiting if n not in ids]
         if changed:
             _save_cache(cache_file, cache)
         return ids, None

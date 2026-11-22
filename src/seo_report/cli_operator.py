@@ -358,7 +358,7 @@ def _link_resolver(ctx, settings):
         paths = auth.paths_from_settings(settings, ctx.environ)
     except Exception:  # noqa: BLE001
         return None
-    return lambda names: drive_links.resolve(settings, paths, names)
+    return lambda names, fresh=(): drive_links.resolve(settings, paths, names, fresh=fresh)
 
 
 _LINK_NOTES = {"drive_signin_missing": "Dashboard links open a Drive search (one extra click). For links that open the PDF directly, run `setup drive` once, then `report export`.",

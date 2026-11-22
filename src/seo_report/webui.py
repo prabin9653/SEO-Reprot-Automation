@@ -57,6 +57,8 @@ READ_ONLY = {
     "history": lambda p: ["status"] + (["--client", p["client"]] if p.get("client") else []),
     "open": lambda p: ["report", "open", "--client", p["client"]] + (["--period", p["period"]] if p.get("period") else []),
     "register": lambda p: ["clients", "add", "--name", p["name"]],
+    # copies finished reports to the shared folder and rewrites its dashboard (never overwrites, contacts only Google Drive for the optional direct links)
+    "export": lambda p: ["report", "export"],
 }
 
 
@@ -146,6 +148,13 @@ def summarize(action: str, code: int, data) -> dict:
         summary = f"{data.get('client_key')} {data.get('period_id')}: {data.get('state')} ({data.get('outcome')})"
         if error:
             summary += f" - {error.get('code')} at {error.get('stage')}"
+    elif action == "export" and "copied" in data:
+        summary = (f"Shared folder updated: {len(data['copied'])} copied, {data.get('already_there', 0)} already there, "
+                   f"{data.get('direct_links', 0)} direct PDF link(s) in the dashboard." if ok else "The shared folder was not fully updated; see the details.")
+        if data.get("link_note") == "drive_signin_missing":
+            summary += " Links open a Drive search; run `setup drive` once for direct links."
+        elif data.get("link_note") == "drive_lookup_unavailable":
+            summary += " Some direct links could not be looked up yet (Drive may still be uploading); press the button again in a few minutes."
     elif error:
         summary = str(error.get("message") or error.get("code") or "failed")
     else:
@@ -379,8 +388,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send_json(202, {"ok": True, "job": job.view()})
         if method == "POST" and name in READ_ONLY:
             params = clean_params(name, self._body())
-            if name == "register" and self.server.jobs.active():
-                raise BadRequest("wait for the running job to finish before changing the client list", 409)
+            if name in ("register", "export") and self.server.jobs.active():
+                raise BadRequest("wait for the running job to finish before " + ("changing the client list" if name == "register" else "updating the shared folder"), 409)
             with self.server.read_lock:  # one read-only command at a time keeps the sign-in refresh and the workbook read orderly
                 code, data = run(READ_ONLY[name](params), READ_TIMEOUT)
             if name in ("check", "device", "history") and isinstance(data, dict):

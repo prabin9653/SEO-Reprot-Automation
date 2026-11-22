@@ -75,6 +75,7 @@ code{font-family:ui-monospace,Consolas,monospace;background:var(--idle-bg);paddi
     <div class="toolbar">
       <button class="btn" id="refresh">Refresh from the sheet</button>
       <button class="btn primary" id="run-all" disabled>Run all that are ready</button>
+      <button class="btn" id="export-shared" title="Copy finished reports to the shared Drive folder and rebuild its dashboard">Refresh dashboard</button>
       <span class="sub grow" id="summary"></span>
     </div>
     <div class="card"><table><thead><tr><th>Client</th><th>Status</th><th>Period</th><th>Report</th><th>Google</th><th></th></tr></thead><tbody id="rows"></tbody></table>
@@ -195,6 +196,12 @@ async function register(name) {
   catch (e) { note(e.message, true); }
   setBusy(false);
 }
+async function exportShared() {
+  setBusy(true); note("Updating the shared folder...");
+  try { const r = await api("POST", "export", {}); note(r.result.summary, !r.ok); showAdvice(r.data && r.data.error); }
+  catch (e) { note(e.message, true); }
+  setBusy(false);
+}
 async function openPdf(client, period) {
   try { const r = await api("POST", "open", {client, period}); note(r.ok ? "Opened the report in your PDF viewer." : r.result.summary, !r.ok); } catch (e) { note(e.message, true); }
 }
@@ -254,6 +261,7 @@ $("tab-clients").addEventListener("click", () => show("clients"));
 $("tab-history").addEventListener("click", () => show("history"));
 $("refresh").addEventListener("click", async () => { note(""); setBusy(true); await loadClients(); await loadDevice(); setBusy(false); });
 $("refresh-history").addEventListener("click", loadHistory);
+$("export-shared").addEventListener("click", exportShared);
 $("run-all").addEventListener("click", () => {
   const rows = clients.filter(runnable); if (!rows.length) return;
   const dupes = rows.filter((r) => r.elsewhere).map((r) => r.name + " (" + r.elsewhere.operator + ")");

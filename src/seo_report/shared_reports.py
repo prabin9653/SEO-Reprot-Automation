@@ -121,8 +121,8 @@ def utc_text(timestamp) -> str | None:
 
 def publish(settings, *, names: dict, describe, keys=None, now=None, dashboard: bool = True, link_resolver=None) -> dict:
     """Copy finished reports (all of them, or only these client keys) and rewrite the dashboard. `describe(client_key, period_id)` returns (finished_at, generated_by)
-    for a report the ledger records as done, or None for anything else (such a report is neither copied nor listed). `link_resolver(file_names)` (optional) returns
-    `(ids, note)`: Google Drive IDs by file name, so the dashboard can link straight to a PDF (see `drive_links`). Never raises."""
+    for a report the ledger records as done, or None for anything else (such a report is neither copied nor listed). `link_resolver(file_names, fresh_names)` (optional) returns
+    `(ids, note)`: Google Drive IDs by file name (the fresh names were copied just now), so the dashboard can link straight to a PDF (see `drive_links`). Never raises."""
     shared = settings.reports_dir
     result = {"copied": [], "already_there": 0, "differs": [], "failed": [], "not_recorded": [], "dashboard": False, "folder": str(shared) if shared else None,
               "link_note": None, "direct_links": 0}
@@ -151,7 +151,8 @@ def publish(settings, *, names: dict, describe, keys=None, now=None, dashboard: 
                                             "shared": (Path(shared) / key / pdf_name(key, period)).is_file()})
     if dashboard and link_resolver is not None:
         try:
-            ids, result["link_note"] = link_resolver([pdf_name(k, e["period_id"]) for k, items in entries.items() for e in items if e["shared"]])
+            ids, result["link_note"] = link_resolver([pdf_name(k, e["period_id"]) for k, items in entries.items() for e in items if e["shared"]],
+                                                     [pdf_name(*item.split("/")) for item in result["copied"]])
             for key, items in entries.items():
                 for item in items:
                     item["file_id"] = ids.get(pdf_name(key, item["period_id"])) if item["shared"] else None
