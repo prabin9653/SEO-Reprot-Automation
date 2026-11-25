@@ -4,7 +4,7 @@
 # 'Client Configuration' tab (Project Manager, Manager Email, Manager Phone); nothing personal is kept here.
 # The business details under that person come from the regional profile matching the client's Target Country
 # (exact name, ignoring case and spacing). A client whose Target Country has no profile below is rejected;
-# there is no default profile. Add a country by adding a block.
+# there is no default profile. Add a country by adding a block. A profile may also name its own report logo (`logo:`, a .png inside assets/).
 sender:
   name: Jasper IT Inc.   # an organisation label only: it is never printed and never replaces a Project Manager
 
@@ -16,6 +16,7 @@ regional_profiles:
       - Houston, TX 77059
     website_label: https://jasperitinc.com/
     website_url: https://jasperitinc.com/
+    logo: jasper-us-logo.png   # optional: this region's logo, a .png file inside assets/ (without it the standard logo is used)
   Australia:
     title: "Project Manager | Jasper IT Solutions"
     address_lines:

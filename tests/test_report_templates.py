@@ -172,7 +172,7 @@ def test_the_dejavu_font_files_and_licence_exist_where_r0_found_them_and_the_bun
         assert (folder / name).is_file(), name
         assert (bundled / name).read_bytes() == (folder / name).read_bytes(), name
     assert sorted(p.name for p in bundled.iterdir()) == ["DejaVuSans-Bold.ttf", "DejaVuSans.ttf", "LICENSE_DEJAVU"]
-    assert sorted(p.name for p in (ROOT / "assets").iterdir()) == ["fonts", "jasper-logo.png"]
+    assert sorted(p.name for p in (ROOT / "assets").iterdir()) == ["fonts", "jasper-logo.png", "jasper-us-logo.png"]
 
 
 def test_nothing_in_the_css_or_templates_depends_on_the_machine_or_the_network():

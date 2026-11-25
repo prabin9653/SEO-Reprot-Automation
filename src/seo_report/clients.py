@@ -19,6 +19,14 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "jasper.y
 ACTIVE_STATUS = "active"
 EMAIL_PATTERN = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+", re.ASCII)
 SHEETS_EPOCH = dt.date(1899, 12, 30)
+ASSETS_DIR = Path(__file__).resolve().parents[2] / "assets"
+_LOGO_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.png")  # a plain file name: never a path, so a regional logo cannot point outside `assets/`
+
+
+def regional_logo_path(sender) -> Path | None:
+    """The report's regional logo file inside `assets/` (from the client's regional profile), or None when the standard logo applies."""
+    name = getattr(sender, "logo", None)
+    return ASSETS_DIR / name if name and _LOGO_FILE.fullmatch(name) else None
 
 # Canonical field -> accepted header spellings (normalized). The sheet's existing
 # "Project Maanger" header is accepted alongside the correct spelling.
@@ -63,6 +71,7 @@ class ContactProfile:
     address_lines: tuple[str, ...]
     website_label: str
     website_url: str
+    logo: str | None = None  # optional: the file name of this region's logo inside `assets/` (None = the standard logo of the runner settings)
 
 
 @dataclass(frozen=True)
@@ -78,6 +87,7 @@ class Sender:
     website_label: str | None = None
     website_url: str | None = None
     profiles: tuple[ContactProfile, ...] = ()
+    logo: str | None = None  # the regional logo file name (inside `assets/`) for this client's report, or None for the standard logo
 
 
 @dataclass(frozen=True)
@@ -237,8 +247,11 @@ def _load_profiles(raw, path) -> tuple[ContactProfile, ...]:
         title, label, url = _text(item.get("title")), _text(item.get("website_label")), _text(item.get("website_url"))
         if not (title and lines and label and url):
             raise SheetDataError(f"{path}: regional profile {str(country)!r} needs title, address_lines, website_label and website_url")
+        logo = _text(item.get("logo")) or None
+        if logo is not None and not _LOGO_FILE.fullmatch(logo):
+            raise SheetDataError(f"{path}: regional profile {str(country)!r}: logo must be a .png file name inside the assets folder (letters, digits, '.', '_' or '-')")
         seen.add(key)
-        profiles.append(ContactProfile(_text(country), title, lines, label, url))
+        profiles.append(ContactProfile(_text(country), title, lines, label, url, logo))
     return tuple(profiles)
 
 
@@ -262,7 +275,7 @@ def resolve_sender(default: Sender, country: str, manager_name: str, email: str,
     if profile is None:
         raise SheetDataError("no Jasper contact profile is configured for this Target Country")
     return Sender(name=name, title=profile.title, address_lines=profile.address_lines, phone=phone or None, email=email or None,
-                  website_label=profile.website_label, website_url=profile.website_url)
+                  website_label=profile.website_label, website_url=profile.website_url, logo=profile.logo)
 
 
 def build_clients(client_rows, keyword_rows, default_sender: Sender) -> list[Client]:

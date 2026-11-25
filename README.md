@@ -61,7 +61,7 @@ C:\JasperSEO\venv\Scripts\python -m playwright install chromium            # one
 
 1. **Runner settings:** `seo setup device` writes `%LOCALAPPDATA%\JasperSEOReporting\config\runner.yaml` (never overwritten once it exists). See `config/runner.yaml.example` for every option: storage folders (defaults under `%LOCALAPPDATA%\JasperSEOReporting`), `render.fonts`, `workbooks.reporting_spreadsheet_id`, `paths.oauth_client_file` / `paths.oauth_cache_file` and the optional `paths.shared_activity_dir`. The loader refuses anything that looks like a credential. A different file can be named with `--config PATH` or `JASPER_SEO_CONFIG`.
 2. **Client registry:** `config/clients.yaml` maps each exact sheet Client Name to a permanent `client_key` (it is local and git-ignored; copy the team lead's so keys match across computers). `seo clients add` maintains it. `config/clients.yaml.example` shows the format.
-3. **Contact block:** `config/jasper.yaml` holds the regional Jasper details (United States, Australia). The contact person (name, e-mail, phone) comes only from the client's own row in the workbook.
+3. **Contact block and logo:** `config/jasper.yaml` holds the regional Jasper details (United States, Australia). The contact person (name, e-mail, phone) comes only from the client's own row in the workbook. A regional profile may also name its own report logo (`logo: jasper-us-logo.png`, a `.png` inside `assets/`); a region without one uses the standard `assets/jasper-logo.png`. A finished report keeps the logo it was made with, so a changed logo shows on new reports (a new 28-day period) or in a `report preview`.
 
 ## Safety rules
 

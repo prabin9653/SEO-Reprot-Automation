@@ -26,6 +26,7 @@ from seo_report import pdf_renderer as pr
 from seo_report import render_artifacts as ra
 from seo_report import render_identity as idn
 from seo_report import render_state as rstate
+from seo_report.clients import regional_logo_path
 from seo_report.contracts import StageError
 
 LOGGER = logging.getLogger("seo_report.render_service")
@@ -74,8 +75,9 @@ def render(assembled, client_run, *, settings, generation_date: dt.date, attempt
         raise StageError("render_failed", "reviewer_scan_" + error.code[:40]) from None
     font_paths = {f.label: f.path for f in settings.fonts}
     sources = font_sources(settings)
+    logo_path = regional_logo_path(client_run.client.sender) or settings.logo_path  # a regional profile may name its own logo (inside assets/)
     try:
-        fingerprints = idn.measure_render_fingerprints(logo_path=settings.logo_path, font_paths=font_paths)
+        fingerprints = idn.measure_render_fingerprints(logo_path=logo_path, font_paths=font_paths)
         candidate = idn.build_render_input(assembled.bundle, sender=client_run.client.sender,
                                            generation_date=generation_date,
                                            history_insights=assembled.history_insights, fingerprints=fingerprints)
@@ -86,7 +88,7 @@ def render(assembled, client_run, *, settings, generation_date: dt.date, attempt
     if renderer is None:  # the real browser, under the configured hard limit (`execution.stage_timeouts.rendering`)
         renderer = functools.partial(pr.render_report_pdf, timeout_seconds=settings.stage_timeouts.rendering)
     try:
-        drafted = ra.produce_report_draft(reports, candidate, workdir=work, logo_path=settings.logo_path, fonts=sources,
+        drafted = ra.produce_report_draft(reports, candidate, workdir=work, logo_path=logo_path, fonts=sources,
                                           finalized_render_hashes=finalized, renderer=renderer, ops=ops)
     except pr.RenderTimeoutError as error:
         # raised before any PDF, sidecar or draft exists for this attempt: nothing was promoted, a retry renders again
